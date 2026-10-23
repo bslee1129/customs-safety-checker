@@ -1,4 +1,5 @@
 import os
+import sys
 import re
 import json
 import difflib
@@ -6,6 +7,15 @@ import pandas as pd
 from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
 from config import DB_EXCEL_PATH, LOCAL_DB_JSON_PATH, PRODUCT_IMAGE_DIR
+
+# Windows 콘솔 인코딩 안전화
+try:
+    if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    if sys.stderr and hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
 
 # 단독으로 위험 성분으로 판정하면 안 되는 일반적인 성분 목록
 COMMON_SAFE_INGREDIENTS = {
@@ -37,7 +47,7 @@ class DatabaseService:
         # 1. 엑셀 파일 로드 시도
         if DB_EXCEL_PATH and Path(DB_EXCEL_PATH).exists():
             try:
-                print(f"📂 엑셀 DB 로드 중: {DB_EXCEL_PATH}")
+                print(f"[INFO] 엑셀 DB 로드 중: {DB_EXCEL_PATH}")
                 df = pd.read_excel(DB_EXCEL_PATH)
                 df = df.fillna("")
                 
@@ -61,10 +71,10 @@ class DatabaseService:
                 self.records = records
                 self._build_indexes()
                 self.initialized = True
-                print(f"✅ DB 로드 완료: 총 {len(self.records)}건 색인화")
+                print(f"[SUCCESS] DB 로드 완료: 총 {len(self.records)}건 색인화")
                 return
             except Exception as e:
-                print(f"🚨 엑셀 DB 로드 실패: {e}")
+                print(f"[ERROR] 엑셀 DB 로드 실패: {e}")
 
         # 2. 캐시 JSON 로드 시도
         if LOCAL_DB_JSON_PATH.exists():
@@ -73,10 +83,10 @@ class DatabaseService:
                     self.records = json.load(f)
                 self._build_indexes()
                 self.initialized = True
-                print(f"✅ 캐시 JSON DB 로드 완료: 총 {len(self.records)}건")
+                print(f"[SUCCESS] 캐시 JSON DB 로드 완료: 총 {len(self.records)}건")
                 return
             except Exception as e:
-                print(f"🚨 캐시 JSON 로드 실패: {e}")
+                print(f"[ERROR] 캐시 JSON 로드 실패: {e}")
 
         # 3. 기본 빈 데이터셋
         self.records = []

@@ -1,8 +1,18 @@
 import os
+import sys
 import io
 import base64
 import shutil
 from pathlib import Path
+
+# Windows 콘솔 인코딩 안전화
+try:
+    if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    if sys.stderr and hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
 from fastapi import FastAPI, UploadFile, File, Form, Query, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles

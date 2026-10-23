@@ -1,0 +1,60 @@
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+# 기본 경로
+BASE_DIR = Path(__file__).resolve().parent
+WORKSPACE_DIR = BASE_DIR.parent
+
+# .env 로드
+load_dotenv(BASE_DIR / ".env")
+
+# API Keys
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+FOOD_SAFETY_API_KEY = os.getenv("FOOD_SAFETY_API_KEY", "4856a47da3de44c7b172")
+FOOD_SAFETY_SERVICE_ID = os.getenv("FOOD_SAFETY_SERVICE_ID", "I2715")
+
+# 서버 설정
+HOST = os.getenv("HOST", "0.0.0.0")
+PORT = int(os.getenv("PORT", "8000"))
+DEBUG = os.getenv("DEBUG", "True").lower() == "true"
+
+# 데이터 및 이미지 경로 설정
+DATA_DIR = BASE_DIR / "data"
+DATA_DIR.mkdir(exist_ok=True)
+
+TEMP_UPLOADS_DIR = BASE_DIR / "temp_uploads"
+TEMP_UPLOADS_DIR.mkdir(exist_ok=True)
+
+# 기존 DB 엑셀 파일 탐색 (1. 새 프로젝트 data/, 2. 상위 워크스페이스)
+EXCEL_DB_CANDIDATES = [
+    DATA_DIR / "불법의약품DB.xlsx",
+    WORKSPACE_DIR / "불법의약품DB.xlsx",
+    WORKSPACE_DIR / "Customs_AI_Bot" / "불법의약품DB.xlsx",
+]
+
+DB_EXCEL_PATH = None
+for p in EXCEL_DB_CANDIDATES:
+    if p.exists():
+        DB_EXCEL_PATH = p
+        break
+
+# 로컬 캐시 JSON 경로
+LOCAL_DB_JSON_PATH = DATA_DIR / "drugs_db_cache.json"
+
+# 기존 다운로드 이미지 디렉터리 탐색
+IMAGE_DIR_CANDIDATES = [
+    DATA_DIR / "product_images",
+    WORKSPACE_DIR / "Customs_AI_Bot" / "all_downloaded_images",
+    WORKSPACE_DIR / "all_downloaded_images",
+]
+
+PRODUCT_IMAGE_DIR = None
+for p in IMAGE_DIR_CANDIDATES:
+    if p.exists():
+        PRODUCT_IMAGE_DIR = p
+        break
+
+if PRODUCT_IMAGE_DIR is None:
+    PRODUCT_IMAGE_DIR = DATA_DIR / "product_images"
+    PRODUCT_IMAGE_DIR.mkdir(exist_ok=True)

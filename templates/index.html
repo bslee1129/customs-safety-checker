@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>관세청 AI 위해식품·불법의약품 스마트 검사관 | AX 혁신 플랫폼</title>
+  
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <nav class="navbar">
+    <div class="nav-container">
+      <a href="/" class="brand">
+        <img src="/static/assets/logo.png" alt="관세청 로고" class="brand-logo" onerror="this.style.display='none'">
+        <div class="brand-text">
+          <h1>AI 위해식품·불법의약품 스마트 검사관</h1>
+          <p><i class="fa-solid fa-shield-halved"></i> 범정부 AX 혁신 관세 통관 도우미</p>
+        </div>
+      </a>
+
+      <div class="nav-tabs">
+        <button class="nav-tab-btn active" data-tab="tabInspect">
+          <i class="fa-solid fa-camera"></i> 사진 비교 검사
+        </button>
+        <button class="nav-tab-btn" data-tab="tabApiSync">
+          <i class="fa-solid fa-cloud-arrow-down"></i> API 데이터 수집
+        </button>
+        <button class="nav-tab-btn" data-tab="tabGuide">
+          <i class="fa-brands fa-github"></i> GitHub 연동
+        </button>
+      </div>
+
+      <div class="nav-badge-live">
+        <span class="pulse-dot"></span>
+        <span>AI Vision Engine Online</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content Area -->
+  <main class="main-wrapper">
+
+    <!-- ============================================================= -->
+    <!-- TAB 1: 실시간 사진 촬영 및 1:1 비교 검사 -->
+    <!-- ============================================================= -->
+    <section id="tabInspect" class="tab-view active">
+      <div class="grid-2col">
+
+        <!-- 좌측: 카메라 뷰 및 촬영 컨트롤 -->
+        <div class="glass-panel">
+          <div class="panel-header">
+            <h2 class="panel-title">
+              <i class="fa-solid fa-video"></i> 현품 카메라 촬영 & AI 비전
+            </h2>
+            <span id="cameraStatusText" class="nav-badge-live" style="background: rgba(59, 130, 246, 0.15); border-color: rgba(59, 130, 246, 0.3); color: #93c5fd;">
+              카메라 준비
+            </span>
+          </div>
+
+          <!-- 라이브 카메라 뷰파인더 -->
+          <div class="camera-box-wrap">
+            <video id="cameraVideo" autoplay playsinline muted></video>
+            <canvas id="capturedPhotoCanvas"></canvas>
+            
+            <!-- 조준선 오버레이 -->
+            <div class="viewfinder-overlay">
+              <span class="viewfinder-corner vf-tl"></span>
+              <span class="viewfinder-corner vf-tr"></span>
+              <span class="viewfinder-corner vf-bl"></span>
+              <span class="viewfinder-corner vf-br"></span>
+              <div id="laserScannerLine" class="laser-scanner-line"></div>
+            </div>
+          </div>
+
+          <!-- 카메라 컨트롤 버튼군 -->
+          <div class="camera-controls">
+            <button id="btnStartCamera" class="btn btn-secondary flex-grow">
+              <i class="fa-solid fa-play"></i> 카메라 시작
+            </button>
+            <button id="btnCapturePhoto" class="btn btn-primary flex-grow" disabled>
+              <i class="fa-solid fa-camera-viewfinder"></i> 사진 촬영 & AI 판별
+            </button>
+            <button id="btnSwitchCamera" class="btn btn-secondary btn-icon-round" title="카메라 전/후면 전환">
+              <i class="fa-solid fa-rotate"></i>
+            </button>
+            <button id="btnUploadTrigger" class="btn btn-secondary btn-icon-round" title="사진 파일 직접 업로드">
+              <i class="fa-solid fa-folder-open"></i>
+            </button>
+            <input type="file" id="filePhotoInput" accept="image/*" style="display: none;">
+          </div>
+
+          <!-- 보조 입력 (바코드 및 수동 검색) -->
+          <div style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border-glass);">
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+              <input type="text" id="inputBarcodeHint" class="search-input" placeholder="바코드 수동 입력 (선택사항, 8~13자리)" style="padding: 0.55rem 0.85rem; font-size: 0.85rem;">
+            </div>
+          </div>
+        </div>
+
+        <!-- 우측: 1:1 사진 대조 및 판정 결과 -->
+        <div class="glass-panel">
+          <div class="panel-header">
+            <h2 class="panel-title">
+              <i class="fa-solid fa-clone"></i> 1:1 사진 대조 & 위해 판정
+            </h2>
+            <span style="font-size: 0.78rem; color: var(--text-muted);">
+              현품 vs 관세청·식약처 공공DB
+            </span>
+          </div>
+
+          <!-- 미검사 상태 안내 -->
+          <div id="inspectionEmptyState" style="text-align: center; padding: 4rem 1.5rem; color: var(--text-muted);">
+            <i class="fa-solid fa-magnifying-glass-arrow-right" style="font-size: 3rem; margin-bottom: 1rem; color: #334155;"></i>
+            <h3 style="color: #cbd5e1; font-size: 1.1rem; margin-bottom: 0.5rem;">검사 대기 중</h3>
+            <p style="font-size: 0.88rem;">왼쪽 카메라에서 [사진 촬영 & AI 판별]을 실행하거나<br>사진 파일을 업로드하면 1:1 대조 결과가 표시됩니다.</p>
+          </div>
+
+          <!-- 결과 컨테이너 (초기 숨김) -->
+          <div id="inspectionResultContainer" style="display: none;">
+            
+            <!-- 1:1 Side by Side Dual Viewer -->
+            <div class="dual-comparison-container">
+              <!-- 좌측: 촬영된 현품 사진 -->
+              <div class="compare-card">
+                <div class="compare-card-title">
+                  <i class="fa-solid fa-camera"></i> 현품 촬영 사진
+                </div>
+                <div class="compare-img-wrap">
+                  <img id="inspectPhotoPreview" src="" alt="현품 사진">
+                </div>
+              </div>
+
+              <!-- 우측: 관세청/식약처 DB 원본 사진 -->
+              <div class="compare-card">
+                <div class="compare-card-title">
+                  <i class="fa-solid fa-database"></i> DB 원본 등록 사진
+                </div>
+                <div id="dbPhotoWrap" class="compare-img-wrap">
+                  <img id="dbPhotoPreview" src="" alt="DB 원본 사진" style="display: none;">
+                  <div id="noDbImageText" class="no-image-placeholder">
+                    <i class="fa-solid fa-image-slash" style="font-size: 2rem;"></i>
+                    <span>등록된 원본 이미지 없음</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 판정 결과 배너 -->
+            <div id="verdictBanner" class="verdict-banner pass">
+              <div>
+                <div id="verdictTitle" class="verdict-title">
+                  <i class="fa-solid fa-circle-check"></i> 정상 판정
+                </div>
+                <div id="verdictDesc" class="verdict-desc">
+                  위해성분 및 차단 목록과 일치하지 않습니다.
+                </div>
+              </div>
+              <div class="verdict-score">
+                <div id="verdictScore" class="pct">95%</div>
+                <div class="lbl">신뢰도 / 일치율</div>
+              </div>
+            </div>
+
+            <!-- 상세 비교 대조 테이블 -->
+            <div class="detail-table-wrap">
+              <table class="detail-table">
+                <tbody id="detailTableBody">
+                  <!-- JS에서 동적 주입 -->
+                </tbody>
+              </table>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============================================================= -->
+    <!-- TAB 2: 식품안전나라 API 실시간 수집 및 대시보드 -->
+    <!-- ============================================================= -->
+    <section id="tabApiSync" class="tab-view">
+      
+      <!-- 통계 카드 그리드 -->
+      <div class="stats-cards-grid">
+        <div class="stat-card">
+          <div class="stat-icon blue">
+            <i class="fa-solid fa-server"></i>
+          </div>
+          <div class="stat-info">
+            <h3 id="statTotalDb">-</h3>
+            <p>로컬 DB 보유 건수</p>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon cyan">
+            <i class="fa-solid fa-cloud"></i>
+          </div>
+          <div class="stat-info">
+            <h3 id="statApiTotal">-</h3>
+            <p>식약처 서버 총 등록 건수</p>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon amber">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+          </div>
+          <div class="stat-info">
+            <h3 id="statHarmfulTotal">-</h3>
+            <p>지정 차단 위해성분 수</p>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon emerald">
+            <i class="fa-solid fa-images"></i>
+          </div>
+          <div class="stat-info">
+            <h3 id="statImagesCount">-</h3>
+            <p>고화질 증거사진 보관 상태</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 동기화 제어 패널 -->
+      <div class="glass-panel" style="margin-bottom: 1.5rem;">
+        <div class="panel-header">
+          <h2 class="panel-title">
+            <i class="fa-solid fa-cloud-arrow-down"></i> 식품안전나라 Open API (I2715) 실시간 동기화
+          </h2>
+          <span style="font-size: 0.82rem; color: var(--accent-cyan);">
+            해외직구 위해식품 차단정보 공식 연동
+          </span>
+        </div>
+
+        <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 1rem;">
+          정부 공식 Open API를 통해 매일 새롭게 지정되는 해외직구 위해의약품·식품 데이터를 실시간으로 가져와 로컬 DB를 최신 상태로 유지합니다.
+        </p>
+
+        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+          <button id="btnSync100" class="btn btn-primary">
+            <i class="fa-solid fa-download"></i> 최신 100건 실시간 수집
+          </button>
+          <button id="btnSync500" class="btn btn-secondary">
+            <i class="fa-solid fa-download"></i> 최신 500건 일괄 동기화
+          </button>
+          <button id="btnCustomSync" class="btn btn-secondary">
+            <i class="fa-solid fa-sliders"></i> 구간 직접 지정 수집
+          </button>
+        </div>
+
+        <!-- 진행 프로그레스 바 -->
+        <div id="syncProgressContainer" class="progress-container">
+          <div id="syncProgressBar" class="progress-bar"></div>
+        </div>
+
+        <!-- 수집 콘솔 로그 -->
+        <div id="syncConsoleBox" class="console-box">
+          <div>[System] 식품안전나라 API 수집 대기 중...</div>
+        </div>
+      </div>
+
+      <!-- 차단 DB 검색 및 테이블 -->
+      <div class="glass-panel">
+        <div class="panel-header">
+          <h2 class="panel-title">
+            <i class="fa-solid fa-table-list"></i> 위해식품·불법의약품 차단 목록 조회
+          </h2>
+        </div>
+
+        <!-- 검색창 -->
+        <div class="search-bar">
+          <input type="text" id="dbSearchInput" class="search-input" placeholder="제품명, 위해성분(Sennoside, Yohimbine 등), 바코드, 등록번호 검색...">
+          <button id="btnDbSearch" class="btn btn-primary">
+            <i class="fa-solid fa-magnifying-glass"></i> 검색
+          </button>
+        </div>
+
+        <!-- 데이터 테이블 -->
+        <div class="data-table-container">
+          <table class="customs-table">
+            <thead>
+              <tr>
+                <th>등록번호</th>
+                <th>제품명</th>
+                <th>바코드</th>
+                <th>위해성분</th>
+                <th>통관보류사유</th>
+                <th>작업</th>
+              </tr>
+            </thead>
+            <tbody id="dbTableBody">
+              <!-- JS 동적 주입 -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 페이징 컨트롤 -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">
+          <span id="paginationInfo" style="font-size: 0.85rem; color: var(--text-muted);">-</span>
+          <div style="display: flex; gap: 0.5rem;">
+            <button id="btnPrevPage" class="btn btn-secondary" style="padding: 0.45rem 0.9rem;" disabled>이전</button>
+            <button id="btnNextPage" class="btn btn-secondary" style="padding: 0.45rem 0.9rem;">다음</button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============================================================= -->
+    <!-- TAB 3: GitHub 연동 및 프로젝트 실행 가이드 -->
+    <!-- ============================================================= -->
+    <section id="tabGuide" class="tab-view">
+      <div class="glass-panel">
+        <div class="panel-header">
+          <h2 class="panel-title">
+            <i class="fa-brands fa-github"></i> GitHub 저장소 연동 가이드
+          </h2>
+        </div>
+
+        <div style="font-size: 0.92rem; line-height: 1.8; color: var(--text-secondary);">
+          <p style="margin-bottom: 1rem;">
+            이 프로젝트는 로컬 Git 저장소(<code style="color: #60a5fa;">customs-safety-checker</code>)로 초기화되어 있으며, 
+            사용자님의 GitHub 계정(<code style="color: #60a5fa;">https://github.com/</code>)에 바로 원격 저장소를 연결하여 푸시할 수 있습니다.
+          </p>
+
+          <h3 style="color: #f8fafc; font-size: 1.05rem; margin: 1.5rem 0 0.75rem;">
+            <i class="fa-solid fa-1"></i> GitHub에서 새 저장소(New Repository) 생성
+          </h3>
+          <p>
+            1. 브라우저에서 <a href="https://github.com/new" target="_blank" style="color: #38bdf8; text-decoration: underline;">https://github.com/new</a>에 접속합니다.<br>
+            2. Repository Name에 <code>customs-safety-checker</code> (또는 원하는 이름)을 입력합니다.<br>
+            3. [Create repository] 버튼을 클릭합니다.
+          </p>
+
+          <h3 style="color: #f8fafc; font-size: 1.05rem; margin: 1.5rem 0 0.75rem;">
+            <i class="fa-solid fa-2"></i> 로컬 프로젝트와 GitHub 원격 저장소 연결 (터미널 명령)
+          </h3>
+          <div style="background: #060912; padding: 1.25rem; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: #38bdf8; overflow-x: auto; margin-bottom: 1rem;">
+            # 1. 프로젝트 폴더로 이동<br>
+            cd d:\AX붐업\범정부AX\customs-safety-checker<br><br>
+            # 2. 첫 커밋 생성<br>
+            git add .<br>
+            git commit -m "feat: 관세청 AI 스마트 검사관 v2.0 초기 릴리스"<br><br>
+            # 3. 브랜치명을 main으로 설정<br>
+            git branch -M main<br><br>
+            # 4. 나의 GitHub 원격 저장소 연결 (사용자 아이디로 변경)<br>
+            git remote add origin https://github.com/&lt;사용자아이디&gt;/customs-safety-checker.git<br><br>
+            # 5. GitHub에 푸시<br>
+            git push -u origin main
+          </div>
+
+          <h3 style="color: #f8fafc; font-size: 1.05rem; margin: 1.5rem 0 0.75rem;">
+            <i class="fa-solid fa-3"></i> 실행 방법 (Local Run)
+          </h3>
+          <div style="background: #060912; padding: 1.25rem; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: #38bdf8; overflow-x: auto;">
+            # 가상환경 파이썬으로 FastAPI 서버 실행<br>
+            ..\Customs_AI_Bot\venv\Scripts\python.exe server.py<br>
+            # 접속 주소: http://localhost:8000
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 상세 보기 모달 -->
+  <div id="detailModal" class="modal-backdrop">
+    <div class="modal-content">
+      <button id="btnCloseModal" class="modal-close">&times;</button>
+      <h3 style="margin-bottom: 1.2rem; font-size: 1.2rem; font-weight: 800; color: #f8fafc;">
+        <i class="fa-solid fa-shield-virus"></i> 위해물품 상세 정보
+      </h3>
+      <div id="modalBodyContent">
+        <!-- 동적 주입 -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <p>대한민국 관세청 (Korea Customs Service) AI 혁신 검사 도우미 | 범정부 AX 붐업 프로젝트</p>
+    <p style="margin-top: 0.25rem;">Powered by Google Gemini 2.5 Flash Multimodal Vision & 식품안전나라 Open API</p>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="/static/js/camera.js"></script>
+  <script src="/static/js/compare.js"></script>
+  <script src="/static/js/api_sync.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

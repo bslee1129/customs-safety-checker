@@ -1,0 +1,27 @@
+# Environment variables
+.env
+kcs.env
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Large dataset files (불법의약품 원본 엑셀 및 대용량 이미지 캐시)
+*.xlsx
+*.xls
+Customs_AI_Bot/
+all_downloaded_images/
+temp_uploads/
+
+# IDE / Editor
+.vscode/
+.idea/
+.DS_Store

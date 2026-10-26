@@ -229,6 +229,12 @@ class SafetyKoreaApi:
             if res_cert.get("success") and res_cert.get("items"):
                 result["certifications"] = res_cert["items"]
                 target_cert = res_cert["items"][0]
+                
+                # KC 상세 사진(certificationImageUrls) 자동 로드
+                detail_info = self.get_certification_detail(target_cert.get("certNum"))
+                if detail_info.get("success") and detail_info.get("data"):
+                    target_cert.update(detail_info["data"])
+
                 result["kc_detail"] = target_cert
                 state = target_cert.get("certState", "")
                 
@@ -299,6 +305,9 @@ class SafetyKoreaApi:
                 if res_cert_name.get("success") and res_cert_name.get("items"):
                     result["certifications"] = res_cert_name["items"]
                     target = res_cert_name["items"][0]
+                    detail_info = self.get_certification_detail(target.get("certNum"))
+                    if detail_info.get("success") and detail_info.get("data"):
+                        target.update(detail_info["data"])
                     result["kc_detail"] = target
                     state = target.get("certState", "")
                     if state == "적합":

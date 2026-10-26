@@ -275,17 +275,7 @@ with tab1:
                     st.markdown("#### 🏛️ 정부 DB 공식 등록 원본 사진")
                     db_img_url = match_res.get("db_remote_image_url")
                     
-                    # 국표원 해외직구 조사 사진 우선 대조
-                    if not db_img_url and safety_res.get("overseas_safety"):
-                        os_img = safety_res["overseas_safety"][0].get("imageUrl")
-                        if os_img:
-                            db_img_url = os_img.split(",")[0]
-                    # 국표원 리콜 사진 대조
-                    if not db_img_url and safety_res.get("domestic_recalls"):
-                        dr_img = safety_res["domestic_recalls"][0].get("imageUrl")
-                        if dr_img:
-                            db_img_url = dr_img.split(",")[0]
-
+                    # 1. 식약처 로컬 저장 사진
                     local_seq = db_record.get("등록번호") if db_record else None
                     local_img_path = None
                     if local_seq:
@@ -296,12 +286,53 @@ with tab1:
                         elif c2.exists():
                             local_img_path = str(c2)
 
+                    # 2. 국표원 공인 KC 인증 등록 사진 목록 확인
+                    kc_images = []
+                    if safety_res.get("kc_detail"):
+                        kc_images = safety_res["kc_detail"].get("certificationImageUrls") or []
+
+                    # 3. 국표원 해외직구 조사 및 리콜 사진 목록
+                    os_imgs = []
+                    if safety_res.get("overseas_safety"):
+                        for it in safety_res["overseas_safety"]:
+                            u = it.get("imageUrl")
+                            if u:
+                                os_imgs.extend([x.strip() for x in u.split(",") if x.strip()])
+
+                    dr_imgs = []
+                    if safety_res.get("domestic_recalls"):
+                        for it in safety_res["domestic_recalls"]:
+                            u = it.get("imageUrl")
+                            if u:
+                                dr_imgs.extend([x.strip() for x in u.split(",") if x.strip()])
+
+                    # 정부 DB 사진 우선순위별 렌더링
                     if local_img_path and os.path.exists(local_img_path):
+                        st.markdown("**🏛️ 식약처 차단 DB 등록 사진**")
                         st.image(local_img_path, caption=f"식약처 차단 사진 (등록번호: {local_seq})", use_container_width=True)
                     elif db_img_url:
-                        st.image(db_img_url, caption="정부기관 공식 제공 이미지", use_container_width=True)
+                        st.markdown("**🏛️ 식약처 차단 DB 등록 사진**")
+                        st.image(db_img_url, caption="식약처 공식 제공 이미지", use_container_width=True)
+                    elif kc_images:
+                        # 국표원 KC 인증 사진 갤러리 렌더링!
+                        cert_n = safety_res['kc_detail'].get('certNum', '')
+                        st.markdown(f"**🏷️ 국표원 KC 안전인증 등록 사진 (총 {len(kc_images)}장)**")
+                        if len(kc_images) == 1:
+                            st.image(kc_images[0], caption=f"KC 등록 공식 사진 ({cert_n})", use_container_width=True)
+                        else:
+                            kc_photo_tabs = st.tabs([f"KC사진 #{i+1}" for i in range(len(kc_images))])
+                            for i, k_tab in enumerate(kc_photo_tabs):
+                                with k_tab:
+                                    st.image(kc_images[i], caption=f"국표원 전산 등록 원본 사진 {i+1}/{len(kc_images)} ({cert_n})", use_container_width=True)
+                        st.caption(f"[🔗 SafetyKorea 공식 인증상세 원문 확인](https://www.safetykorea.kr/search/searchPop?certNum={cert_n})")
+                    elif os_imgs:
+                        st.markdown("**🚨 국표원 해외직구 안전성조사 시험 사진**")
+                        st.image(os_imgs[0], caption="해외직구 부적합 판정 검사 사진", use_container_width=True)
+                    elif dr_imgs:
+                        st.markdown("**🚨 국표원 국내 리콜 제품 사진**")
+                        st.image(dr_imgs[0], caption="국내 리콜 제품 사진", use_container_width=True)
                     else:
-                        st.info("등록된 원본 비교 사진이 없거나 조회 중입니다.")
+                        st.info("정부 DB에 등록된 원본 비교 사진이 없거나 조회 중입니다.")
 
                 # 세부 대조 정보
                 st.markdown("#### 🔍 세부 대조 내역")
@@ -427,6 +458,19 @@ with tab2:
                                 st.write(f"- **인증일자**: {item.get('certDate', '-')}")
                                 if item.get("remark"):
                                     st.write(f"- **상세내용**: {item.get('remark')}")
+                                
+                                c_num = item.get('certNum')
+                                if c_num:
+                                    st.markdown(f"[🔗 SafetyKorea 공식 인증상세 원문 조회](https://www.safetykorea.kr/search/searchPop?certNum={c_num})")
+                                    det = safetykorea_api.get_certification_detail(c_num)
+                                    if det.get("success") and det.get("data"):
+                                        kc_imgs = det["data"].get("certificationImageUrls") or []
+                                        if kc_imgs:
+                                            st.markdown(f"**📸 국표원 공식 등록 인증 사진 (총 {len(kc_imgs)}장)**")
+                                            kc_cols = st.columns(min(len(kc_imgs), 4))
+                                            for idx, (img_url, ic) in enumerate(zip(kc_imgs, kc_cols)):
+                                                with ic:
+                                                    st.image(img_url, caption=f"사진 #{idx+1}", use_container_width=True)
                     else:
                         st.error(f"조회 실패: {res.get('error')}")
 

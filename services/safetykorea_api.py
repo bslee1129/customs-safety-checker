@@ -204,18 +204,10 @@ class SafetyKoreaApi:
     # -------------------------------------------------------------
     # 5. 제품명/모델명/바코드 4대 안전정보 통합 원스톱 점검
     # -------------------------------------------------------------
-    def comprehensive_check(self, product_name: str = "", model_name: str = "", barcode: str = "") -> Dict[str, Any]:
+    def comprehensive_check(self, product_name: str = "", model_name: str = "", barcode: str = "", kc_cert_num: str = "", product_name_ko: str = "") -> Dict[str, Any]:
         """
-        제품명, 모델명, 바코드로 4대 안전정보를 원스톱 일괄 조회하고 종합 위험도를 판정합니다.
+        KC인증번호, 제품명, 모델명, 바코드로 4대 안전정보를 원스톱 일괄 조회하고 종합 위험도를 판정합니다.
         """
-        queries = []
-        if product_name and len(product_name.strip()) >= 2:
-            queries.append(product_name.strip())
-        if model_name and len(model_name.strip()) >= 2 and model_name.strip() not in queries:
-            queries.append(model_name.strip())
-        if barcode and len(barcode.strip()) >= 4:
-            queries.append(barcode.strip())
-
         result = {
             "overseas_safety": [],     # 해외직구 안전성 부적합
             "domestic_recalls": [],    # 국내리콜
@@ -226,57 +218,96 @@ class SafetyKoreaApi:
             "has_danger": False,
             "has_warning": False,
             "is_kc_certified": False,
+            "kc_detail": None,
             "summary_alerts": []
         }
 
-        if not queries:
+        # 1) KC 인증번호가 추출된 경우: 인증번호 직접 조회 (가장 정확한 1순위)
+        clean_kc = str(kc_cert_num or "").strip()
+        if clean_kc and clean_kc.lower() != "null" and len(clean_kc) >= 5:
+            res_cert = self.search_certifications(clean_kc, condition_key="certNum")
+            if res_cert.get("success") and res_cert.get("items"):
+                result["certifications"] = res_cert["items"]
+                target_cert = res_cert["items"][0]
+                result["kc_detail"] = target_cert
+                state = target_cert.get("certState", "")
+                
+                if state in ("안전인증취소", "안전확인신고 효력상실", "기간만료", "개선명령"):
+                    result["has_danger"] = True
+                    result["danger_count"] += 1
+                    result["summary_alerts"].append(f"🚨 KC 인증 취소/효력상실 위험: [{target_cert.get('certNum')}] 인증상태 '{state}' (기관: {target_cert.get('certOrganName')})")
+                elif state == "적합":
+                    result["is_kc_certified"] = True
+                    result["summary_alerts"].append(f"✅ 정식 KC 안전인증(적합) 확인: [{target_cert.get('certNum')}] {target_cert.get('productName')} / 모델명: {target_cert.get('modelName')} ({target_cert.get('certOrganName')})")
+                else:
+                    result["summary_alerts"].append(f"ℹ️ KC 인증정보 확인: [{target_cert.get('certNum')}] 상태: {state}")
+
+            # 인증번호로 국내 리콜 이력도 교차 검증
+            res_dr_cert = self.search_domestic_recalls(clean_kc, condition_key="certNum")
+            if res_dr_cert.get("success") and res_dr_cert.get("items"):
+                result["domestic_recalls"].extend(res_dr_cert["items"])
+                result["has_danger"] = True
+                result["danger_count"] += len(res_dr_cert["items"])
+                result["summary_alerts"].append(f"🚨 KC인증번호 [{clean_kc}]에 등록된 국내 리콜 명령 확인!")
+
+        # 2) 검색 쿼리 구성 (한글 제품명 우선 -> 모델명 -> 영문명 -> 바코드)
+        search_terms = []
+        for t in [product_name_ko, model_name, product_name, barcode]:
+            clean_t = str(t or "").strip()
+            if clean_t and clean_t.lower() != "null" and len(clean_t) >= 2 and clean_t not in search_terms:
+                search_terms.append(clean_t)
+
+        if not search_terms and not clean_kc:
             return result
 
-        main_query = queries[0]
+        main_query = search_terms[0] if search_terms else ""
 
-        # 1) 해외직구 안전성 조사 확인
-        res_os = self.search_overseas_safety(main_query)
-        if res_os.get("success") and res_os.get("items"):
-            result["overseas_safety"] = res_os["items"]
-            result["danger_count"] += len(res_os["items"])
-            result["has_danger"] = True
-            first_item = res_os["items"][0]
-            harm = first_item.get("harmDscr", "")
-            result["summary_alerts"].append(f"🚨 해외직구 안전성조사 부적합 이력 확인: {first_item.get('productName')} ({harm[:60]}...)")
-
-        # 2) 국내리콜정보 확인
-        res_dr = self.search_domestic_recalls(main_query)
-        if res_dr.get("success") and res_dr.get("items"):
-            result["domestic_recalls"] = res_dr["items"]
-            result["danger_count"] += len(res_dr["items"])
-            result["has_danger"] = True
-            first_item = res_dr["items"][0]
-            result["summary_alerts"].append(f"🚨 국내 리콜 명령 대상 품목: {first_item.get('recallProductName')} (조치: {first_item.get('publishActionDscr') or '회수명령'})")
-
-        # 3) 국외리콜정보 확인
-        res_fr = self.search_foreign_recalls(main_query)
-        if res_fr.get("success") and res_fr.get("items"):
-            result["foreign_recalls"] = res_fr["items"]
-            result["warning_count"] += len(res_fr["items"])
-            result["has_warning"] = True
-            first_item = res_fr["items"][0]
-            cntry = first_item.get("recallPblshCntryName", "해외")
-            result["summary_alerts"].append(f"⚠️ 국외({cntry}) 리콜/수입거절 이력 확인: {first_item.get('recallProductName')} (사유: {first_item.get('violateDscr', '')[:60]}...)")
-
-        # 4) KC인증정보 확인
-        res_cert = self.search_certifications(main_query)
-        if res_cert.get("success") and res_cert.get("items"):
-            result["certifications"] = res_cert["items"]
-            valid_certs = [c for c in res_cert["items"] if c.get("certState") == "적합"]
-            revoked_certs = [c for c in res_cert["items"] if c.get("certState") in ("안전인증취소", "안전확인신고 효력상실", "기간만료")]
-            
-            if revoked_certs:
+        # 3) 해외직구 안전성 조사 확인
+        if main_query:
+            res_os = self.search_overseas_safety(main_query)
+            if res_os.get("success") and res_os.get("items"):
+                result["overseas_safety"] = res_os["items"]
+                result["danger_count"] += len(res_os["items"])
                 result["has_danger"] = True
-                result["danger_count"] += len(revoked_certs)
-                result["summary_alerts"].append(f"🚨 KC 인증 취소/효력상실 이력 존재: {revoked_certs[0].get('certNum')} ({revoked_certs[0].get('certState')})")
-            elif valid_certs:
-                result["is_kc_certified"] = True
-                result["summary_alerts"].append(f"✅ 정식 KC 인증 확인: {valid_certs[0].get('certNum')} ({valid_certs[0].get('productName')})")
+                first_item = res_os["items"][0]
+                harm = first_item.get("harmDscr", "")
+                result["summary_alerts"].append(f"🚨 해외직구 안전성조사 부적합 이력 확인: {first_item.get('productName')} ({harm[:60]}...)")
+
+            # 4) 국내리콜정보 확인 (제품명 기준)
+            if not result["domestic_recalls"]:
+                res_dr = self.search_domestic_recalls(main_query)
+                if res_dr.get("success") and res_dr.get("items"):
+                    result["domestic_recalls"] = res_dr["items"]
+                    result["danger_count"] += len(res_dr["items"])
+                    result["has_danger"] = True
+                    first_item = res_dr["items"][0]
+                    result["summary_alerts"].append(f"🚨 국내 리콜 명령 대상 품목: {first_item.get('recallProductName')} (조치: {first_item.get('publishActionDscr') or '회수명령'})")
+
+            # 5) 국외리콜정보 확인
+            res_fr = self.search_foreign_recalls(main_query)
+            if res_fr.get("success") and res_fr.get("items"):
+                result["foreign_recalls"] = res_fr["items"]
+                result["warning_count"] += len(res_fr["items"])
+                result["has_warning"] = True
+                first_item = res_fr["items"][0]
+                cntry = first_item.get("recallPblshCntryName", "해외")
+                result["summary_alerts"].append(f"⚠️ 국외({cntry}) 리콜/수입거절 이력 확인: {first_item.get('recallProductName')} (사유: {first_item.get('violateDscr', '')[:60]}...)")
+
+            # 6) 인증번호가 없었을 경우 모델명/제품명으로 KC인증 추가 탐색
+            if not result["certifications"]:
+                res_cert_name = self.search_certifications(main_query)
+                if res_cert_name.get("success") and res_cert_name.get("items"):
+                    result["certifications"] = res_cert_name["items"]
+                    target = res_cert_name["items"][0]
+                    result["kc_detail"] = target
+                    state = target.get("certState", "")
+                    if state == "적합":
+                        result["is_kc_certified"] = True
+                        result["summary_alerts"].append(f"✅ 정식 KC 인증 확인: [{target.get('certNum')}] {target.get('productName')} ({state})")
+                    elif state in ("안전인증취소", "안전확인신고 효력상실", "기간만료"):
+                        result["has_danger"] = True
+                        result["danger_count"] += 1
+                        result["summary_alerts"].append(f"🚨 KC 인증 취소/효력상실: [{target.get('certNum')}] ({state})")
 
         return result
 

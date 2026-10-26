@@ -229,8 +229,18 @@ with tab1:
 
                 # 3. 국표원 SafetyKorea 4대 안전정보 실시간 조회
                 p_name = ocr_data.get("product_name", "")
+                p_name_ko = ocr_data.get("product_name_ko", "")
+                m_name = ocr_data.get("model_name", "")
                 b_code = ocr_data.get("barcode", "")
-                safety_res = safetykorea_api.comprehensive_check(product_name=p_name, barcode=b_code)
+                kc_num = ocr_data.get("kc_cert_num", "")
+
+                safety_res = safetykorea_api.comprehensive_check(
+                    product_name=p_name,
+                    model_name=m_name,
+                    barcode=b_code,
+                    kc_cert_num=kc_num,
+                    product_name_ko=p_name_ko
+                )
 
                 # 종합 판정 결합
                 is_danger = food_status == "DANGER" or safety_res.get("has_danger", False)
@@ -243,6 +253,9 @@ with tab1:
                     st.error("### 🚨 [국내 반입 불가 / 전량 폐기 대상]\n식약처 위해식품 또는 국표원 해외직구 안전성 부적합/리콜 제품과 일치합니다!")
                 elif is_warning:
                     st.warning("### ⚠️ [반입 주의 / 정밀 확인 필요]\n처방전 필요 성분 또는 국외 리콜 이력이 확인된 품목입니다.")
+                elif safety_res.get("is_kc_certified"):
+                    kc = safety_res.get("kc_detail", {})
+                    st.success(f"### ✅ [KC 정식 안전인증 확인 - 적합]\n**국가기술표준원 안전확인 기준을 통과한 안전한 정식 수입/제조 물품입니다.**\n- **인증번호**: `{kc.get('certNum', '-')}` | **모델명**: `{kc.get('modelName', '-')}` ({kc.get('certOrganName', '-')})")
                 else:
                     st.success("### ✅ [정상 / 차단 미등록]\n식약처 위해식품 및 국표원 4대 안전정보에 등재되지 않은 정상 품목입니다.")
 
@@ -296,21 +309,31 @@ with tab1:
                 with info_col1:
                     st.write("**[AI 라벨 추출 정보]**")
                     st.write(f"- 판독 제품명: `{ocr_data.get('product_name', '-')}`")
+                    if ocr_data.get("product_name_ko"):
+                        st.write(f"- 한글 제품명: `{ocr_data.get('product_name_ko')}`")
+                    st.write(f"- 모델명: `{ocr_data.get('model_name', '-')}`")
+                    st.write(f"- KC인증번호: `{ocr_data.get('kc_cert_num', '-')}`")
                     st.write(f"- 브랜드/제조사: `{ocr_data.get('brand', '-')}`")
                     st.write(f"- 바코드: `{ocr_data.get('barcode', '-')}`")
-                    st.write(f"- 추출된 성분 수: {len(ocr_data.get('ingredients', []))} 개")
-                    if ocr_data.get("ingredients"):
-                        st.caption(", ".join(ocr_data["ingredients"][:15]))
 
                 with info_col2:
-                    st.write("**[식약처 위해식품 DB 매칭]**")
+                    st.write("**[정부 DB 대조 판정]**")
                     if db_record:
-                        st.write(f"- 등록 제품명: `{db_record.get('제품명', '-')}`")
+                        st.write(f"- 식약처 차단 제품명: `{db_record.get('제품명', '-')}`")
                         st.write(f"- 검출 위해성분: `{db_record.get('성분명', '-')}`")
-                        st.write(f"- 통관보류사유: `{db_record.get('통관보류사유내용') or match_res.get('db_reason') or '-'}`")
-                        st.write(f"- 출처: `{db_record.get('정보출처', '-')}`")
                     else:
-                        st.write("식약처 위해식품 차단 데이터베이스에 일치 레코드 없음")
+                        st.write("- 식약처 위해식품: 일치 차단 레코드 없음")
+
+                    if safety_res.get("is_kc_certified"):
+                        kc = safety_res.get("kc_detail", {})
+                        st.write(f"- **KC인증 상태**: `적합 (인증완료)`")
+                        st.write(f"- **인증번호**: `{kc.get('certNum', '-')}`")
+                        st.write(f"- **시험연구원**: `{kc.get('certOrganName', '-')}`")
+                        st.write(f"- **수입사**: `{kc.get('importerName', '-')}`")
+                    elif safety_res.get("certifications"):
+                        st.write(f"- **KC인증**: 상태 `{safety_res['certifications'][0].get('certState', '-')}`")
+                    else:
+                        st.write("- **KC인증**: 미조회 또는 인증정보 없음")
 
                 # 국표원 연동 안전정보 카드
                 st.markdown("---")
@@ -318,7 +341,12 @@ with tab1:
                 
                 if safety_res.get("summary_alerts"):
                     for alert in safety_res["summary_alerts"]:
-                        st.warning(alert)
+                        if "✅" in alert:
+                            st.success(alert)
+                        elif "🚨" in alert:
+                            st.error(alert)
+                        else:
+                            st.warning(alert)
                 else:
                     st.info("국가기술표준원 4대 안전정보(KC인증·리콜·직구안전성)에 등록된 특이사항이 없습니다.")
 

@@ -139,24 +139,55 @@ with tab1:
 
     col1, col2 = st.columns([1, 1])
 
-    upload_mode = st.radio("사진 입력 방식 선택", ["파일 업로드", "카메라 직접 촬영"], horizontal=True)
-    uploaded_file = None
+    if "camera_photos" not in st.session_state:
+        st.session_state["camera_photos"] = []
 
-    if upload_mode == "파일 업로드":
-        uploaded_file = st.file_uploader("제품 사진 선택 (JPG, PNG)", type=["jpg", "jpeg", "png"])
+    upload_mode = st.radio("사진 입력 방식 선택", ["📁 파일 업로드 (여러 장 가능)", "📷 카메라 직접 촬영 (연속 촬영 가능)"], horizontal=True)
+    image_bytes_list = []
+
+    if "파일 업로드" in upload_mode:
+        uploaded_files = st.file_uploader(
+            "제품 사진 선택 (여러 장 등록 가능: 전면, 후면 성분표, 바코드 등)",
+            type=["jpg", "jpeg", "png"],
+            accept_multiple_files=True
+        )
+        if uploaded_files:
+            image_bytes_list = [f.getvalue() for f in uploaded_files]
+            st.caption(f"📌 총 {len(image_bytes_list)}장의 사진이 등록되었습니다.")
+            preview_cols = st.columns(min(len(image_bytes_list), 4))
+            for idx, (img_b, p_col) in enumerate(zip(image_bytes_list, preview_cols)):
+                with p_col:
+                    st.image(img_b, caption=f"사진 {idx+1}", use_container_width=True)
     else:
-        uploaded_file = st.camera_input("웹캠/카메라로 제품 촬영")
+        cam_photo = st.camera_input("카메라로 제품 촬영 (전면, 성분표 등)")
+        c_btn1, c_btn2 = st.columns([1, 1])
+        with c_btn1:
+            if cam_photo and st.button("📸 현재 촬영 사진 목록에 추가"):
+                st.session_state["camera_photos"].append(cam_photo.getvalue())
+                st.success(f"사진이 추가되었습니다! (총 {len(st.session_state['camera_photos'])}장)")
+        with c_btn2:
+            if st.session_state["camera_photos"] and st.button("🗑️ 촬영 사진 전체 초기화"):
+                st.session_state["camera_photos"] = []
+                st.info("촬영 목록이 초기화되었습니다.")
+
+        if st.session_state["camera_photos"]:
+            image_bytes_list = st.session_state["camera_photos"]
+            st.caption(f"📌 등록된 촬영 사진: 총 {len(image_bytes_list)}장")
+            preview_cols = st.columns(min(len(image_bytes_list), 4))
+            for idx, (img_b, p_col) in enumerate(zip(image_bytes_list, preview_cols)):
+                with p_col:
+                    st.image(img_b, caption=f"촬영 {idx+1}", use_container_width=True)
+        elif cam_photo:
+            image_bytes_list = [cam_photo.getvalue()]
 
     barcode_hint = st.text_input("바코드 번호 (선택사항, 육안 식별 시 보완 입력)")
 
-    if uploaded_file is not None:
-        image_bytes = uploaded_file.getvalue()
-        
+    if image_bytes_list:
         st.markdown("---")
-        if st.button("🚀 AI 위해식품 정밀 검사 시작", type="primary", use_container_width=True):
-            with st.spinner("Gemini AI가 라벨 문자를 해독하고 관세청 DB와 1:1 비교 대조 중입니다..."):
-                # 1. AI Vision 분석
-                vision_result = ai_vision_service.analyze_image(image_bytes)
+        if st.button(f"🚀 AI 정밀 검사 시작 ({len(image_bytes_list)}장 통합 분석)", type="primary", use_container_width=True):
+            with st.spinner(f"Gemini AI가 {len(image_bytes_list)}장의 사진을 종합 분석(전면+후면 성분표)하여 관세청 DB와 1:1 대조 중입니다..."):
+                # 1. AI Vision 다중 사진 통합 분석
+                vision_result = ai_vision_service.analyze_image(image_bytes_list)
                 
                 ocr_data = {}
                 if vision_result.get("success") and vision_result.get("data"):
@@ -196,8 +227,14 @@ with tab1:
                 # 사진 1:1 비교 영역
                 col_left, col_right = st.columns(2)
                 with col_left:
-                    st.markdown("#### 📷 현품 검사 사진")
-                    st.image(image_bytes, caption="촬영/업로드된 실제 검사물품", use_container_width=True)
+                    st.markdown(f"#### 📷 현품 검사 사진 ({len(image_bytes_list)}장 등록됨)")
+                    if len(image_bytes_list) == 1:
+                        st.image(image_bytes_list[0], caption="촬영/업로드된 실제 검사물품", use_container_width=True)
+                    else:
+                        img_tabs = st.tabs([f"사진 {i+1}" for i in range(len(image_bytes_list))])
+                        for i, i_tab in enumerate(img_tabs):
+                            with i_tab:
+                                st.image(image_bytes_list[i], caption=f"검사물품 사진 #{i+1}", use_container_width=True)
 
                 with col_right:
                     st.markdown("#### 🏛️ 관세청 DB 공식 등록 원본 사진")

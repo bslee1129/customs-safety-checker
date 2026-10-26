@@ -3,7 +3,7 @@ import json
 import re
 import io
 from PIL import Image
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List, Union
 from config import GEMINI_API_KEY
 
 class AiVisionService:
@@ -21,24 +21,53 @@ class AiVisionService:
                 print(f"⚠️ Gemini Client 초기화 실패: {e}")
                 self.client = None
 
-    def analyze_image(self, image_bytes: bytes) -> Dict[str, Any]:
+    def analyze_image(self, images: Union[bytes, List[bytes]]) -> Dict[str, Any]:
         """
-        현품 촬영 사진을 Gemini Vision 모델로 분석하여 제품명, 브랜드, 바코드, 성분 목록을 JSON으로 추출
+        현품 촬영 사진(단일 또는 여러 장: 전면 라벨, 후면 원재료/성분표, 바코드 등)을
+        Gemini Vision 모델로 통합 분석하여 제품명, 브랜드, 바코드, 성분 목록을 JSON으로 추출
         """
-        # 이미지 크기 및 형식 유효성 검사
-        try:
-            pil_img = Image.open(io.BytesIO(image_bytes))
-            # 너무 큰 이미지는 리사이징 (최대 1600px)
-            max_dim = 1600
-            if max(pil_img.size) > max_dim:
-                pil_img.thumbnail((max_dim, max_dim))
-                buf = io.BytesIO()
-                pil_img.save(buf, format="JPEG", quality=85)
-                image_bytes = buf.getvalue()
-        except Exception as e:
+        if isinstance(images, bytes):
+            image_list = [images]
+        elif isinstance(images, list):
+            image_list = images
+        else:
             return {
                 "success": False,
-                "error": f"유효하지 않은 이미지 파일입니다: {e}",
+                "error": "전달된 이미지 데이터 형식이 올바르지 않습니다.",
+                "data": None
+            }
+
+        if not image_list:
+            return {
+                "success": False,
+                "error": "등록된 사진이 없습니다.",
+                "data": None
+            }
+
+        processed_parts = []
+        max_dim = 1600
+
+        for idx, img_b in enumerate(image_list):
+            try:
+                pil_img = Image.open(io.BytesIO(img_b))
+                if max(pil_img.size) > max_dim:
+                    pil_img.thumbnail((max_dim, max_dim))
+                    buf = io.BytesIO()
+                    pil_img.save(buf, format="JPEG", quality=85)
+                    img_b = buf.getvalue()
+                
+                from google.genai import types
+                processed_parts.append(
+                    types.Part.from_bytes(data=img_b, mime_type="image/jpeg")
+                )
+            except Exception as e:
+                print(f"⚠️ {idx+1}번째 이미지 처리 오류: {e}")
+                continue
+
+        if not processed_parts:
+            return {
+                "success": False,
+                "error": "유효하게 처리된 사진이 없습니다.",
                 "data": None
             }
 
@@ -47,13 +76,14 @@ class AiVisionService:
             if not self.client:
                 return {
                     "success": False,
-                    "error": "Gemini API 키가 설정되지 않았거나 클라이언트를 초기화할 수 없습니다. .env를 확인해주세요.",
+                    "error": "Gemini API 키가 설정되지 않았거나 클라이언트를 초기화할 수 없습니다. .env 또는 Secrets를 확인해주세요.",
                     "data": None
                 }
 
         prompt = """
 당신은 대한민국 관세청과 식품의약품안전처가 제공하는 '대국민 해외직구 의약품·영양제 안심 통관 도우미' AI 전문 약학 자문관입니다.
-국민이 해외 직구 또는 해외여행 중 구매하려는 약/영양제의 사진(제품 앞면, 라벨, 성분표, 알약 형태 등)을 정밀 판독하여,
+전달된 사진들은 동일한 의심 제품의 여러 각도 사진(제품 전면 라벨, 후면 원재료/성분표(Supplement Facts, Nutrition Facts, Ingredients), 바코드, 측면 등)일 수 있습니다.
+전달된 모든 사진을 종합적으로 정밀 판독하여,
 "해당 약이 위험한지", "국내 반입이 가능한지", 그리고 "왜 반입이 안 되는지(부작용 및 법적 사유)"를 국민 눈높이에 맞춰 친절하고 알기 쉽게 분석하세요.
 
 반드시 마크다운 태그(```json 등) 없이 순수 JSON 객체만 반환하세요:
@@ -73,7 +103,7 @@ class AiVisionService:
 }
 
 중요 판정 지침:
-1. 텍스트 라벨과 'Ingredients' / 'Supplement Facts'를 정밀하게 읽어 성분을 누락 없이 기재하세요.
+1. 사진 중 후면 성분표(Supplement Facts / Ingredients)가 있다면 모든 성분명을 하나도 빠짐없이 꼼꼼히 추출하세요.
 2. 멜라토닌(Melatonin: 국내 전문의약품/처방필요), 요힘빈(Yohimbine: 심근경색위험 반입금지), 센노사이드(Sennoside: 변비약 성분 남용위험), 실데나필/타다라필(발기부전 치료성분), 에페드린/슈도에페드린(마약원료), CBD/THC(대마성분) 등 국내 반입 제한 성분을 엄격히 선별하세요.
 3. 전문 용어보다는 국민이 안심하고 이해할 수 있는 쉬운 한국어로 설명하세요.
 """
@@ -88,13 +118,9 @@ class AiVisionService:
         last_error = None
         for model_name in models_to_try:
             try:
-                from google.genai import types
                 response = self.client.models.generate_content(
                     model=model_name,
-                    contents=[
-                        types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"),
-                        prompt
-                    ]
+                    contents=processed_parts + [prompt]
                 )
                 
                 resp_text = response.text.strip()

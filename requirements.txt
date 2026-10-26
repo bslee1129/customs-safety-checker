@@ -1,12 +1,9 @@
-fastapi>=0.115.0
-uvicorn>=0.30.0
-python-multipart>=0.0.12
-pydantic>=2.9.0
-requests>=2.31.0
-pandas>=2.2.0
-openpyxl>=3.1.2
-pillow>=10.0.0
-google-genai>=1.0.0
-python-dotenv>=1.0.0
-streamlit>=1.35.0
-beautifulsoup4>=4.12.0
+# Core requirements
+fastapi
+uvicorn
+python-multipart
+pydantic
+requests
+pillow
+python-dotenv
+beautifulsoup4

@@ -44,6 +44,19 @@ class AiVisionService:
                 "data": None
             }
 
+        if not self.client:
+            current_k = os.getenv("GEMINI_API_KEY", self.api_key)
+            if current_k:
+                self.api_key = current_k
+                self._init_client()
+
+        if not self.client:
+            return {
+                "success": False,
+                "error": "Gemini API 키가 설정되지 않았습니다. Streamlit Secrets 또는 .env를 확인해 주세요.",
+                "data": None
+            }
+
         processed_parts = []
         max_dim = 1600
 
@@ -150,5 +163,33 @@ class AiVisionService:
             "error": f"AI 비전 판독 실패 ({last_error})",
             "data": None
         }
+
+    def extract_labels_multi(self, images: List[bytes]) -> Dict[str, Any]:
+        """
+        다중 사진 통합 분석 래퍼 함수 (Streamlit 및 세관 앱 전용)
+        - analyze_image의 parsed JSON 딕셔너리를 직접 반환하여 호환성 보장
+        """
+        res = self.analyze_image(images)
+        if res.get("success") and res.get("data"):
+            data = res["data"]
+            data["_model_used"] = res.get("model_used")
+            return data
+        
+        # 실패 시 기본 안전 딕셔너리 반환
+        return {
+            "product_name": "",
+            "brand": "",
+            "barcode": "",
+            "ingredients": [],
+            "kc_cert_num": None,
+            "rra_cert_nums": [],
+            "harmful_suspects": [],
+            "is_prohibited_suspect": False,
+            "error": res.get("error", "AI 이미지 분석에 실패했습니다.")
+        }
+
+    def extract_labels(self, image_bytes: bytes) -> Dict[str, Any]:
+        """단일 사진 라벨 추출 래퍼"""
+        return self.extract_labels_multi([image_bytes])
 
 ai_vision_service = AiVisionService()

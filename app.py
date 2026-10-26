@@ -200,6 +200,9 @@ def render_user_service():
                     with st.spinner("AI가 제품명, 성분, KC안전인증, 전파인증을 종합 분석 중입니다..."):
                         start_t = time.time()
                         ocr_result = ai_vision_service.extract_labels_multi(total_images_bytes)
+                        if ocr_result.get("error") and not ocr_result.get("product_name"):
+                            st.warning(f"⚠️ AI 라벨 인식 안내: {ocr_result.get('error')}")
+
                         match_result = db_service.match_product(ocr_result)
 
                         p_name = ocr_result.get("product_name") or ""

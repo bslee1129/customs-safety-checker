@@ -28,8 +28,26 @@ from services.rra_api import rra_api
 # 커스텀 CSS 스타일링
 st.markdown("""
 <style>
+    /* 이미지 크기 자동 최적화 (세로 사진 과대 표시 방지) */
+    div[data-testid="stImage"] {
+        text-align: center;
+        display: flex;
+        justify-content: center;
+    }
+    div[data-testid="stImage"] img {
+        max-height: 360px !important;
+        width: auto !important;
+        object-fit: contain !important;
+        border-radius: 8px !important;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.15) !important;
+        margin: 0 auto !important;
+    }
+
     /* 모바일 반응형 베이스 */
     @media (max-width: 768px) {
+        div[data-testid="stImage"] img {
+            max-height: 280px !important;
+        }
         .user-header, .admin-header {
             padding: 16px 14px !important;
             margin-bottom: 14px !important;
@@ -200,10 +218,15 @@ def render_user_service():
 
         if total_images_bytes:
             st.write(f"**현재 등록된 사진: 총 {len(total_images_bytes)}장**")
-            img_cols = st.columns(min(len(total_images_bytes), 4))
-            for i, b_data in enumerate(total_images_bytes):
-                with img_cols[i % len(img_cols)]:
-                    st.image(b_data, caption=f"사진 #{i+1}", use_container_width=True)
+            if len(total_images_bytes) == 1:
+                p_c1, p_c2, p_c3 = st.columns([1, 2, 1])
+                with p_c2:
+                    st.image(total_images_bytes[0], caption="등록된 제품 사진 #1", width=220)
+            else:
+                img_cols = st.columns(min(len(total_images_bytes), 4))
+                for i, b_data in enumerate(total_images_bytes):
+                    with img_cols[i % len(img_cols)]:
+                        st.image(b_data, caption=f"사진 #{i+1}", width=180)
             
             if st.button("등록된 사진 초기화", key="user_reset_imgs"):
                 st.session_state["camera_photos"] = []
@@ -300,12 +323,12 @@ def render_user_service():
                             st.markdown("#### 📷 현품 검사 사진")
                             st.caption("촬영/업로드된 실제 검사물품")
                             if len(total_images_bytes) == 1:
-                                st.image(total_images_bytes[0], caption="촬영/업로드된 실제 검사물품", use_container_width=True)
+                                st.image(total_images_bytes[0], caption="촬영/업로드된 실제 검사물품", width=280)
                             else:
                                 img_tabs = st.tabs([f"사진 #{i+1}" for i in range(len(total_images_bytes))])
                                 for i, i_tab in enumerate(img_tabs):
                                     with i_tab:
-                                        st.image(total_images_bytes[i], caption=f"실제 검사물품 #{i+1}", use_container_width=True)
+                                        st.image(total_images_bytes[i], caption=f"실제 검사물품 #{i+1}", width=280)
 
                         with col_right:
                             st.markdown("#### 🏛️ 관세청·정부 DB 공식 등록 원본 사진")
@@ -339,13 +362,13 @@ def render_user_service():
                             rendered_db_img = False
                             if is_blocked and (local_img_path or db_remote_url):
                                 target_img = local_img_path if local_img_path else db_remote_url
-                                st.image(target_img, caption="식품안전나라 공식 제공 차단 제품 원본 사진", use_container_width=True)
+                                st.image(target_img, caption="식품안전나라 공식 제공 차단 제품 원본 사진", width=280)
                                 rendered_db_img = True
                             elif recall_images:
-                                st.image(recall_images[0], caption="국가기술표준원 리콜 처분 공고 원본 사진", use_container_width=True)
+                                st.image(recall_images[0], caption="국가기술표준원 리콜 처분 공고 원본 사진", width=280)
                                 rendered_db_img = True
                             elif kc_images:
-                                st.image(kc_images[0], caption="국가기술표준원 KC 공식 인증 등록 사진", use_container_width=True)
+                                st.image(kc_images[0], caption="국가기술표준원 KC 공식 인증 등록 사진", width=280)
                                 rendered_db_img = True
 
                             if not rendered_db_img:

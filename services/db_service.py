@@ -478,6 +478,7 @@ class DatabaseService:
             risks_text = ingr_info.get("health_risks") or "인체 안전성이 검증되지 않아 복용 시 심각한 부작용 위험이 있습니다."
 
             return {
+                "matched": True,
                 "status": "DANGER",
                 "verdict": "반입 금지 (통관 차단·폐기 대상)",
                 "confidence": 99.0,
@@ -551,6 +552,7 @@ class DatabaseService:
 
             is_danger = best_ratio >= 0.85
             return {
+                "matched": True,
                 "status": "DANGER" if is_danger else "WARNING",
                 "verdict": "반입 금지 (위해식품 일치)" if is_danger else "반입 주의 (차단 제품과 매우 유사)",
                 "confidence": round(best_ratio * 100, 1),
@@ -602,6 +604,7 @@ class DatabaseService:
             ingr_info = get_ingredient_explanation(sample_ingr)
 
             return {
+                "matched": True,
                 "status": "DANGER",
                 "verdict": "반입 금지 (반입차단 위해성분 검출)",
                 "confidence": 88.0,
@@ -640,6 +643,7 @@ class DatabaseService:
             risks_text = ai_health or ingr_info.get("health_risks") or "국내 의사 처방전이 필요하거나 오남용 시 부작용 우려가 있습니다."
 
             return {
+                "matched": True,
                 "status": "WARNING",
                 "verdict": "반입 주의 (처방전 필요 또는 반입 제한 성분)",
                 "confidence": 80.0,
@@ -670,6 +674,7 @@ class DatabaseService:
         # 5단계: 불일치 / 정상 물품 (안심 반입 가능)
         # -------------------------------------------------------------
         return {
+            "matched": False,
             "status": "PASS",
             "verdict": "반입 가능 (정상 물품)",
             "confidence": 95.0,

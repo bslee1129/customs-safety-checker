@@ -173,17 +173,25 @@ with tab1:
 
                 # 2. DB 매칭 및 1:1 비교
                 match_res = db_service.match_product(ocr_data)
-                is_matched = match_res.get("matched", False)
+                status = match_res.get("status", "PASS")
+                is_matched = match_res.get("matched", False) or (status in ("DANGER", "WARNING")) or bool(match_res.get("record"))
                 db_record = match_res.get("record")
-                reasons = match_res.get("reasons", [])
+                citizen = match_res.get("citizen_summary", {})
+                verdict = match_res.get("verdict", "")
+                confidence = match_res.get("confidence", 0)
+                match_reason = match_res.get("match_reason", "")
 
                 st.subheader("📋 1:1 비교 대조 판정 결과")
 
                 # 판정 배너
-                if is_matched:
-                    st.error("🚨 **[통관 보류 / 반입 차단 대상]** 위해식품·불법의약품 데이터베이스와 일치합니다!")
+                if status == "DANGER" or (is_matched and citizen.get("badge_type") == "danger"):
+                    badge_text = citizen.get("badge_text", "🚨 국내 반입 불가 (폐기 대상)")
+                    st.error(f"### {badge_text}\n**판정 결과**: {verdict} (일치 신뢰도: {confidence}%)\n\n👉 **{citizen.get('headline', '위해식품 차단 데이터베이스와 일치합니다.')}**")
+                elif status == "WARNING":
+                    badge_text = citizen.get("badge_text", "⚠️ 반입 주의 (확인 필요)")
+                    st.warning(f"### {badge_text}\n**판정 결과**: {verdict} (신뢰도: {confidence}%)\n\n👉 **{citizen.get('headline', '주의가 필요한 성분이 감지되었습니다.')}**")
                 else:
-                    st.success("✅ **[정상 / 차단 미등록]** 위해식품 차단 데이터베이스에 등재되지 않은 품목입니다.")
+                    st.success("### ✅ [정상 / 차단 미등록]\n위해식품 차단 데이터베이스에 등재되지 않은 정상 품목입니다.")
 
                 # 사진 1:1 비교 영역
                 col_left, col_right = st.columns(2)
@@ -209,7 +217,7 @@ with tab1:
                     elif db_img_url:
                         st.image(db_img_url, caption=f"식품안전나라 공식 제공 이미지", use_container_width=True)
                     else:
-                        st.info("등록된 비교 사진이 없거나 조회 중입니다.")
+                        st.info("등록된 원본 비교 사진이 없거나 조회 중입니다.")
 
                 # 세부 대조 정보
                 st.markdown("#### 🔍 세부 대조 내역")
@@ -228,15 +236,25 @@ with tab1:
                     if db_record:
                         st.write(f"- 등록 제품명: `{db_record.get('제품명', '-')}`")
                         st.write(f"- 검출 위해성분: `{db_record.get('성분명', '-')}`")
-                        st.write(f"- 반입금지 사유: `{db_record.get('회수사유', '-')}`")
+                        st.write(f"- 통관보류사유: `{db_record.get('통관보류사유내용') or match_res.get('db_reason') or '-'}`")
                         st.write(f"- 정보 출처: `{db_record.get('정보출처', '-')}`")
                     else:
                         st.write("일치하는 차단 레코드가 없습니다.")
 
-                if reasons:
-                    st.markdown("#### ⚠️ 차단 근거 및 상세 사유")
-                    for r in reasons:
-                        st.warning(f"• {r}")
+                if is_matched and citizen:
+                    st.markdown("---")
+                    st.markdown("#### 🛡️ 대국민 안전 정보 및 통관 안내")
+                    guide_col1, guide_col2 = st.columns(2)
+                    with guide_col1:
+                        if citizen.get("why_prohibited"):
+                            st.error(f"**🚫 반입 금지 사유**\n\n{citizen['why_prohibited']}")
+                        if citizen.get("health_risks"):
+                            st.warning(f"**⚠️ 인체 부작용 및 건강 위험성**\n\n{citizen['health_risks']}")
+                    with guide_col2:
+                        if citizen.get("action_guide"):
+                            st.info(f"**💡 국민 행동 요령**\n\n{citizen['action_guide']}")
+                        if citizen.get("legal_basis"):
+                            st.caption(f"**관련 법령**: {citizen['legal_basis']}")
 
 # -------------------------------------------------------------
 # 탭 2: 차단 DB 통합 검색

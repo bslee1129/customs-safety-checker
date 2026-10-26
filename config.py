@@ -9,9 +9,19 @@ WORKSPACE_DIR = BASE_DIR.parent
 # .env 로드
 load_dotenv(BASE_DIR / ".env")
 
+# Streamlit Cloud secrets 호환 연동
+try:
+    import streamlit as st
+    if hasattr(st, "secrets"):
+        for k, v in st.secrets.items():
+            if not os.getenv(k):
+                os.environ[k] = str(v)
+except Exception:
+    pass
+
 # API Keys
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-FOOD_SAFETY_API_KEY = os.getenv("FOOD_SAFETY_API_KEY", "4856a47da3de44c7b172")
+FOOD_SAFETY_API_KEY = os.getenv("FOOD_SAFETY_API_KEY", "")
 FOOD_SAFETY_SERVICE_ID = os.getenv("FOOD_SAFETY_SERVICE_ID", "I2715")
 
 # 서버 설정

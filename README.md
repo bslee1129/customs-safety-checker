@@ -67,7 +67,7 @@ cp .env.example .env
 `.env` 내용:
 ```ini
 GEMINI_API_KEY=your_gemini_api_key_here
-FOOD_SAFETY_API_KEY=4856a47da3de44c7b172
+FOOD_SAFETY_API_KEY=your_food_safety_api_key_here
 FOOD_SAFETY_SERVICE_ID=I2715
 HOST=0.0.0.0
 PORT=8000

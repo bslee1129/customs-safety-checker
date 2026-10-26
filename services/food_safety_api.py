@@ -5,8 +5,6 @@ from typing import Dict, Any, List, Optional
 from pathlib import Path
 from config import FOOD_SAFETY_API_KEY, FOOD_SAFETY_SERVICE_ID, PRODUCT_IMAGE_DIR
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
 class FoodSafetyApiService:
     def __init__(self, api_key: str = FOOD_SAFETY_API_KEY, service_id: str = FOOD_SAFETY_SERVICE_ID):
         self.api_key = api_key
@@ -17,7 +15,7 @@ class FoodSafetyApiService:
         """식품안전나라 API 상태 및 총 데이터 건수 조회"""
         try:
             url = f"{self.base_url}/1/1"
-            response = requests.get(url, timeout=7, verify=False)
+            response = requests.get(url, timeout=7)
             if response.status_code != 200:
                 return {
                     "connected": False,
@@ -54,7 +52,7 @@ class FoodSafetyApiService:
         """지정 구간 데이터 수집"""
         try:
             url = f"{self.base_url}/{start}/{end}"
-            response = requests.get(url, timeout=15, verify=False)
+            response = requests.get(url, timeout=15)
             if response.status_code != 200:
                 return {"success": False, "error": f"HTTP {response.status_code}", "rows": []}
 
@@ -89,7 +87,7 @@ class FoodSafetyApiService:
                     try:
                         dest = PRODUCT_IMAGE_DIR / f"img_{seq}.jpg"
                         if not dest.exists():
-                            img_res = requests.get(img_url, timeout=5, verify=False)
+                            img_res = requests.get(img_url, timeout=5)
                             if img_res.status_code == 200:
                                 dest.write_bytes(img_res.content)
                                 local_img = str(dest)

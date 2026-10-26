@@ -252,17 +252,46 @@ def render_user_service():
                             "elapsed": elapsed
                         })
 
-                        # 판정 배너 출력
-                        is_blocked = match_result.get("matched")
-                        has_safety_danger = safety_res.get("has_danger")
-
-                        if is_blocked or has_safety_danger:
-                            st.error("### 🚨 [주의/반입주의 대상] 정부 위해물품 차단 또는 리콜 이력이 확인되었습니다!")
-                        else:
-                            st.success("### ✅ [정상 / 차단 미등록] 위해식품 차단 데이터베이스에 등재되지 않은 품목입니다.")
+                        # 판정 상태 및 세부 요약 추출
+                        food_status = match_result.get("status", "PASS")
+                        citizen_summary = match_result.get("citizen_summary") or {}
+                        is_blocked = match_result.get("matched", False)
+                        has_safety_danger = safety_res.get("has_danger", False)
+                        
+                        db_rec = match_result.get("record") or {}
+                        match_stage = match_result.get("match_stage", "")
+                        
+                        # 안전한 필드 바인딩 (빈 값 '-' 방지)
+                        matched_product_name = db_rec.get("제품명") or p_name or "식품안전나라 차단 의심 품목"
+                        matched_harmful_ingr = (
+                            db_rec.get("성분명") 
+                            or match_result.get("db_harmful_ingredient")
+                            or ", ".join(ocr_result.get("harmful_suspects", []))
+                            or "해외 의약품 주의 성분 (처방전 필요)"
+                        )
+                        matched_reason = (
+                            db_rec.get("회수사유") 
+                            or citizen_summary.get("why_prohibited") 
+                            or match_result.get("db_reason") 
+                            or ocr_result.get("why_prohibited_reason")
+                            or "국내 반입 제한 또는 인체 위해 우려 성분 함유"
+                        )
+                        matched_maker = db_rec.get("제조사") or ocr_result.get("brand") or "해외 제조사"
+                        matched_country = db_rec.get("제조국") or "해외 수입"
+                        matched_source = db_rec.get("정보출처") or "식품안전나라 공식 Open API (I2715) 및 관세청 AI 안전 판정"
 
                         # -------------------------------------------------------------
-                        # 📋 1:1 비교 대조 사진 영역 (현품 사진 vs 정부 DB 공식 등록 사진)
+                        # 1. 상단 종합 판정 배너
+                        # -------------------------------------------------------------
+                        if has_safety_danger or food_status == "DANGER":
+                            st.error("### 🚨 [반입 금지 / 폐기 대상] 정부 위해물품 차단 또는 유통 리콜 명령 대상입니다!")
+                        elif food_status == "WARNING":
+                            st.warning("### ⚠️ [반입 주의 / 확인 필요] 해외 직구 의약품으로 처방전 필요 또는 반입 수량 제한 대상입니다!")
+                        else:
+                            st.success("### ✅ [정상 / 차단 미등록] 정부 위해물품 차단 데이터베이스에 등재되지 않은 정상 품목입니다.")
+
+                        # -------------------------------------------------------------
+                        # 2. 📋 1:1 비교 대조 사진 영역 (현품 사진 vs 정부 DB 공식 등록 사진)
                         # -------------------------------------------------------------
                         st.markdown("### 📋 1:1 비교 대조 판정 결과")
 
@@ -283,7 +312,6 @@ def render_user_service():
                             st.caption("식품안전나라 / 국표원 공식 제공 이미지")
 
                             # 1) 식약처 위해식품/의약품 차단 DB 사진 확인
-                            db_rec = match_result.get("record") or {}
                             db_remote_url = match_result.get("db_remote_image_url") or db_rec.get("원본이미지URL")
                             local_seq = db_rec.get("등록번호")
                             local_img_path = None
@@ -321,13 +349,15 @@ def render_user_service():
                                 rendered_db_img = True
 
                             if not rendered_db_img:
-                                if is_blocked:
-                                    st.info("⚠️ 식품안전나라 차단 데이터에 등록 번호는 있으나, 등록된 사진 이미지가 없는 품목입니다.")
+                                if is_blocked and db_rec:
+                                    st.info("⚠️ 식품안전나라 차단 데이터에 등록 번호는 있으나, 공표용 사진 이미지가 등록되지 않은 품목입니다.")
+                                elif is_blocked and not db_rec:
+                                    st.info("ℹ️ 본 제품은 해외 직구 일반/전문의약품으로 AI가 성분 및 약사법 통관 기준을 판정한 건입니다. (식품안전나라 차단식품 직접 등재 품목이 아니므로 공식 이미지 없음)")
                                 else:
                                     st.info("ℹ️ 위해식품 차단 데이터베이스에 미등재된 정상 품목이므로 차단 등록 사진이 없습니다.")
 
                         # -------------------------------------------------------------
-                        # 🔍 세부 대조 내역 (AI 라벨 추출 정보 vs 정부 DB)
+                        # 3. 🔍 세부 대조 내역 (AI 라벨 추출 정보 vs 정부 DB)
                         # -------------------------------------------------------------
                         with st.expander("🔍 세부 대조 내역 (1:1 상세 정보 대조)", expanded=True):
                             col_d1, col_d2 = st.columns(2)
@@ -343,10 +373,11 @@ def render_user_service():
                             with col_d2:
                                 st.markdown("**[DB 매칭 판정 정보]**")
                                 if is_blocked:
-                                    st.write(f"- **등록 제품명**: {db_rec.get('제품명', '-')}")
-                                    st.write(f"- **검출 위해성분**: <span class='badge-danger'>{db_rec.get('성분명', '-')}</span>", unsafe_allow_html=True)
-                                    st.write(f"- **반입금지 사유**: {db_rec.get('회수사유') or '위해성분 함유 차단'}")
-                                    st.write(f"- **정보 출처**: {db_rec.get('정보출처') or '식품안전나라 공식 Open API (I2715)'}")
+                                    st.write(f"- **등록 제품명**: {matched_product_name}")
+                                    st.write(f"- **검출 위해성분**: <span class='badge-danger'>{matched_harmful_ingr}</span>", unsafe_allow_html=True)
+                                    st.write(f"- **반입금지 사유**: {matched_reason}")
+                                    st.write(f"- **판정 단계**: {match_stage or '정부 차단 기준 일치'}")
+                                    st.write(f"- **정보 출처**: {matched_source}")
                                 elif safety_res.get("has_danger"):
                                     st.write(f"- **적발 유형**: 국표원 유통제품 안전성조사 리콜 적발")
                                     st.write(f"- **관련 인증번호**: `{kc_num or '-'}`")
@@ -355,16 +386,34 @@ def render_user_service():
 
                         st.markdown("---")
 
-                        # 1. 식약처 위해식품 차단 적발 카드
+                        # -------------------------------------------------------------
+                        # 4. 식약처 위해식품 차단 및 의약품 통관 주의 카드
+                        # -------------------------------------------------------------
                         if is_blocked:
+                            card_border = "#dc3545" if food_status == "DANGER" else "#f59e0b"
+                            card_bg = "rgba(220, 53, 69, 0.15)" if food_status == "DANGER" else "rgba(245, 158, 11, 0.15)"
+                            card_title = "🚫 [식약처] 해외직구 차단식품·위해원료 등재 확인" if food_status == "DANGER" else "⚠️ [관세청·식약처] 해외 직구 의약품 통관 주의 안내"
+                            card_title_color = "#ff6b6b" if food_status == "DANGER" else "#fbbf24"
+                            badge_cls = "badge-danger" if food_status == "DANGER" else "badge-warning"
+                            
+                            health_risk = citizen_summary.get("health_risks") or ocr_result.get("health_risks") or "복용 시 건강 피해 또는 부작용 우려가 있습니다."
+                            action_guide = citizen_summary.get("action_guide") or ocr_result.get("customs_advice") or "세관 통관 전 반품하거나 처방전을 구비하세요."
+
                             st.markdown(f"""
-                            <div style="background: rgba(220, 53, 69, 0.15); border: 2px solid #dc3545; border-radius: 10px; padding: 16px; margin-bottom: 14px;">
-                                <h4 style="margin: 0 0 10px 0; color: #ff6b6b;">🚫 [식약처] 해외직구 차단식품·불법의약품 등재 확인</h4>
-                                <div style="font-size: 0.95rem; line-height: 1.6;">
-                                    - <strong>등록 제품명</strong>: {db_rec.get('제품명', '-')}<br>
-                                    - <strong>검출 위해성분</strong>: <span class="badge-danger">{db_rec.get('성분명', '-')}</span><br>
-                                    - <strong>차단/회수 사유</strong>: {db_rec.get('회수사유') or '인체 유해 우려 원료 포함'}<br>
-                                    - <strong>제조사 / 제조국</strong>: {db_rec.get('제조사', '-')} / {db_rec.get('제조국', '-')}<br>
+                            <div style="background: {card_bg}; border: 2px solid {card_border}; border-radius: 10px; padding: 18px; margin-bottom: 14px;">
+                                <h4 style="margin: 0 0 10px 0; color: {card_title_color};">{card_title}</h4>
+                                <div style="font-size: 0.95rem; line-height: 1.7;">
+                                    <div><strong>🏷️ 대상 제품명</strong>: {matched_product_name}</div>
+                                    <div><strong>🧪 주의/검출 성분</strong>: <span class="{badge_cls}">{matched_harmful_ingr}</span></div>
+                                    <div><strong>🏢 제조사 / 제조국</strong>: {matched_maker} / {matched_country}</div>
+                                    <div style="margin-top: 10px; background: rgba(0,0,0,0.25); padding: 12px; border-radius: 8px;">
+                                        <div style="color: #fca5a5; font-weight: bold;">🛑 반입 제한 / 차단 사유:</div>
+                                        <div style="font-size: 0.9rem; margin-bottom: 6px;">{matched_reason}</div>
+                                        <div style="color: #fca5a5; font-weight: bold;">🩺 건강상 위험성 / 부작용:</div>
+                                        <div style="font-size: 0.9rem; margin-bottom: 6px;">{health_risk}</div>
+                                        <div style="color: #6ee7b7; font-weight: bold;">📋 관세청 통관 가이드 및 조치 사항:</div>
+                                        <div style="font-size: 0.9rem;">{action_guide}</div>
+                                    </div>
                                 </div>
                             </div>
                             """, unsafe_allow_html=True)

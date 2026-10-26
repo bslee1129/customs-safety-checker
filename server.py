@@ -28,6 +28,7 @@ from services.food_safety_api import food_safety_api
 from services.db_service import db_service
 from services.ai_vision_service import ai_vision_service
 from services.safetykorea_api import safetykorea_api
+from services.rra_api import rra_api
 
 app = FastAPI(
     title="관세청 AI 위해식품·불법의약품 스마트 검사관",
@@ -281,6 +282,33 @@ async def inspect_text(req: ManualInspectRequest):
         "db_image_api_url": matched_image_api_url,
         "db_remote_image_url": match_result.get("db_remote_image_url")
     }
+
+# -------------------------------------------------------------
+# 국립전파연구원(RRA) 전자파 적합성평가(KC 전파인증) 조회 API
+# -------------------------------------------------------------
+@app.get("/api/rra/cert")
+async def get_rra_cert(cert_num: str = Query(..., description="전자파적합등록/인증번호 (예: R-REM-Y15-YW1801)")):
+    """국립전파연구원 공식 웹사이트 실시간 크롤링 대조 조회"""
+    res = rra_api.lookup_conformity(cert_num.strip())
+    return JSONResponse(content=res)
+
+# -------------------------------------------------------------
+# 국가기술표준원(SafetyKorea) KC인증 / 리콜 조회 API
+# -------------------------------------------------------------
+@app.get("/api/safetykorea/cert")
+async def get_safetykorea_cert(
+    query: str = Query(..., description="검색어"),
+    condition_key: str = Query("all", description="all, certNum, productName, modelName")
+):
+    """국표원 KC인증정보 조회"""
+    res = safetykorea_api.search_certifications(query=query, condition_key=condition_key)
+    return JSONResponse(content=res)
+
+@app.get("/api/safetykorea/cert-detail")
+async def get_safetykorea_cert_detail(cert_num: str = Query(..., description="KC인증번호")):
+    """국표원 KC인증 상세정보 및 제품 공식 등록 사진 조회"""
+    res = safetykorea_api.get_certification_detail(cert_num)
+    return JSONResponse(content=res)
 
 if __name__ == "__main__":
     import uvicorn

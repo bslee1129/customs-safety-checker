@@ -22,6 +22,7 @@ from services.db_service import db_service
 from services.food_safety_api import food_safety_api
 from services.safetykorea_api import safetykorea_api
 from services.ai_vision_service import ai_vision_service
+from services.rra_api import rra_api
 
 # 커스텀 CSS 스타일링
 st.markdown("""
@@ -242,6 +243,12 @@ with tab1:
                     product_name_ko=p_name_ko
                 )
 
+                # 4. 국립전파연구원(RRA) 전자파 적합등록(전파인증) 실시간 조회
+                rra_nums = ocr_data.get("rra_cert_nums", [])
+                if not rra_nums and ocr_data.get("summary"):
+                    rra_nums = rra_api.extract_cert_numbers(ocr_data.get("summary"))
+                rra_results = rra_api.multi_lookup(rra_nums) if rra_nums else []
+
                 # 종합 판정 결합
                 is_danger = food_status == "DANGER" or safety_res.get("has_danger", False)
                 is_warning = (not is_danger) and (food_status == "WARNING" or safety_res.get("has_warning", False))
@@ -395,6 +402,19 @@ with tab1:
                             st.write(f"**제품 결함**: {item.get('harmDscr', '-')}")
                             st.write(f"**소비자 행동요령**: {item.get('publishActionDscr', '-')}")
 
+                # 5. 국립전파연구원(RRA) 전자파 적합성평가(KC 전파인증) 카드
+                if rra_results:
+                    st.markdown("---")
+                    st.markdown("#### 📡 국립전파연구원(RRA) 전자파 적합성평가(KC 전파인증) 실시간 검사")
+                    for rra_item in rra_results:
+                        if rra_item.get("valid"):
+                            d = rra_item["data"]
+                            st.success(f"**✅ [전자파 적합등록 완료 - 적합]** `{d.get('인증번호')}` | **기기명칭**: `{d.get('기기명칭')}` | **기본모델**: `{d.get('기본모델명')}` (파생: `{d.get('파생모델명')}`)")
+                            st.write(f"- **상호/신청자**: `{d.get('상호')}` | **제조자/국가**: `{d.get('제조자')}` ({d.get('제조국가')}) | **인증일자**: `{d.get('인증연월일')}`")
+                            st.caption(f"[🔗 국립전파연구원 공식 인증현황 원문 팝업 확인]({d.get('조회링크')})")
+                        else:
+                            st.warning(f"⚠️ [{rra_item.get('cert_num')}]: 국립전파연구원에 등록되지 않았거나 유효하지 않은 번호입니다.")
+
                 if is_danger and citizen:
                     st.markdown("---")
                     st.markdown("#### 🛡️ 대국민 안전 정보 및 통관 안내")
@@ -411,14 +431,15 @@ with tab1:
                             st.caption(f"**관련 법령**: {citizen['legal_basis']}")
 
 # -------------------------------------------------------------
-# 탭 2: 국표원 4대 안전정보 통합조회 (SafetyKorea)
+# 탭 2: 국표원 & 전파연구원 제품안전·KC·전자파 통합조회
 # -------------------------------------------------------------
 with tab2:
-    st.markdown("### 🏛️ 국가기술표준원 SafetyKorea 4대 제품안전정보 Open API 통합 조회")
-    st.caption("인증키: `bdd3c16d-...` 연동 완료 (공식 규격 인터페이스 적용)")
+    st.markdown("### 🏛️ 국가기술표준원 & 국립전파연구원 제품안전·KC·전자파 인증 실시간 통합 조회")
+    st.caption("식약처 + 국표원 SafetyKorea Open API + 과기정통부 국립전파연구원(RRA) 전산망 실시간 연동")
 
-    sk_sub1, sk_sub2, sk_sub3, sk_sub4 = st.tabs([
-        "🏷️ KC인증정보",
+    sk_sub1, sk_sub2, sk_sub3, sk_sub4, sk_sub5 = st.tabs([
+        "🏷️ KC안전인증 (국표원)",
+        "📡 전자파적합등록 (전파연구원)",
         "🚨 국내리콜정보",
         "🌍 국외리콜정보",
         "📦 해외직구 안전성조사결과"
@@ -474,8 +495,56 @@ with tab2:
                     else:
                         st.error(f"조회 실패: {res.get('error')}")
 
-    # 2. 국내리콜정보
+    # 2. 전자파적합등록 (전파연구원 RRA)
     with sk_sub2:
+        st.subheader("📡 국립전파연구원 전자파 적합성평가(KC 전파인증) 조회")
+        st.caption("과학기술정보통신부 국립전파연구원(RRA) 공식 적합성평가 데이터베이스를 실시간 대조합니다.")
+        
+        rra_col1, rra_col2 = st.columns([3, 1])
+        with rra_col1:
+            rra_input_val = st.text_input(
+                "인증/등록번호 입력", 
+                placeholder="예: R-REM-Y15-YW1801, R-RRI-Y15-YW1802, MSIP-REM-..., KCC-..."
+            )
+        with rra_col2:
+            st.write("")
+            st.write("")
+            rra_search_btn = st.button("전자파인증 조회", type="primary", key="rra_manual_btn")
+            
+        if rra_search_btn:
+            if not rra_input_val.strip():
+                st.warning("전자파적합성평가 등록/인증번호를 입력해 주세요.")
+            else:
+                with st.spinner("국립전파연구원 공식 전산망 실시간 조회 중..."):
+                    rra_res = rra_api.lookup_conformity(rra_input_val.strip())
+                    if rra_res.get("success") and rra_res.get("data"):
+                        rd = rra_res["data"]
+                        st.success(f"✅ 국립전파연구원 공식 등록 확인 완료: **{rd.get('cert_num')}**")
+                        
+                        st.markdown(f"""
+                        <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 10px; padding: 18px; margin-top: 10px;">
+                            <h4 style="margin: 0 0 12px 0; color: #60a5fa;">📡 {rd.get('device_name') or '방송통신기자재'}</h4>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.95rem;">
+                                <div><strong>📋 등록/인증번호:</strong> <code>{rd.get('cert_num')}</code></div>
+                                <div><strong>🏢 상호(신청자):</strong> {rd.get('company_name') or '-'}</div>
+                                <div><strong>🏷️ 기본 모델명:</strong> {rd.get('model_name') or '-'}</div>
+                                <div><strong>📅 인증/등록일자:</strong> {rd.get('cert_date') or '-'}</div>
+                                <div><strong>🏭 제조자/제조국:</strong> {rd.get('maker') or '-'} / {rd.get('country') or '-'}</div>
+                                <div><strong>⚖️ 적합성평가 구분:</strong> {rd.get('cert_type') or '적합등록'}</div>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        derivatives = rd.get("derivative_models", [])
+                        if derivatives:
+                            st.write(f"- **파생 모델명 ({len(derivatives)}개)**: {', '.join(derivatives)}")
+                            
+                        st.markdown(f"[🔗 국립전파연구원 공식 인증대장 원문 팝업 열기]({rd.get('source_url')})")
+                    else:
+                        st.error(f"❌ {rra_res.get('error') or '등록되지 않은 인증번호이거나 유효하지 않습니다.'}")
+
+    # 3. 국내리콜정보
+    with sk_sub3:
         st.subheader("🚨 국내리콜정보 조회")
         c1, c2 = st.columns([1, 2])
         with c1:
@@ -509,8 +578,8 @@ with tab2:
                     else:
                         st.error(f"조회 실패: {res.get('error')}")
 
-    # 3. 국외리콜정보
-    with sk_sub3:
+    # 4. 국외리콜정보
+    with sk_sub4:
         st.subheader("🌍 국외리콜정보 조회 (해외 수입거절·회수)")
         c1, c2 = st.columns([1, 2])
         with c1:
@@ -545,8 +614,8 @@ with tab2:
                     else:
                         st.error(f"조회 실패: {res.get('error')}")
 
-    # 4. 해외직구 안전성조사결과
-    with sk_sub4:
+    # 5. 해외직구 안전성조사결과
+    with sk_sub5:
         st.subheader("📦 해외직구 안전성조사결과 조회 (알리·테무 등 유해물질 기준초과 적발)")
         c1, c2 = st.columns([1, 2])
         with c1:

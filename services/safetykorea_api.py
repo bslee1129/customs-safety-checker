@@ -263,6 +263,18 @@ class SafetyKoreaApi:
             # 인증번호로 국내 리콜 이력도 교차 검증
             res_dr_cert = self.search_domestic_recalls(clean_kc, condition_key="certNum")
             if res_dr_cert.get("success") and res_dr_cert.get("items"):
+                for it in res_dr_cert["items"]:
+                    uid = it.get("recallUid")
+                    if uid:
+                        it["source_url"] = f"https://www.safetykorea.kr/recall/ajax/recallBoard?recallUid={uid}"
+                        det = self.get_domestic_recall_detail(uid)
+                        if det.get("success") and det.get("data"):
+                            it["recallFiles"] = det["data"].get("recallFiles") or []
+                            # 상세 내용 보강
+                            for k in ["harmDscr", "accidentCaseDscr", "publishActionDscr", "recallInqryTel", "recallCmpnyName"]:
+                                if det["data"].get(k):
+                                    it[k] = det["data"][k]
+
                 result["domestic_recalls"].extend(res_dr_cert["items"])
                 result["has_danger"] = True
                 result["danger_count"] += len(res_dr_cert["items"])
@@ -295,6 +307,17 @@ class SafetyKoreaApi:
             if not result["domestic_recalls"]:
                 res_dr = self.search_domestic_recalls(main_query)
                 if res_dr.get("success") and res_dr.get("items"):
+                    for it in res_dr["items"]:
+                        uid = it.get("recallUid")
+                        if uid:
+                            it["source_url"] = f"https://www.safetykorea.kr/recall/ajax/recallBoard?recallUid={uid}"
+                            det = self.get_domestic_recall_detail(uid)
+                            if det.get("success") and det.get("data"):
+                                it["recallFiles"] = det["data"].get("recallFiles") or []
+                                for k in ["harmDscr", "accidentCaseDscr", "publishActionDscr", "recallInqryTel", "recallCmpnyName"]:
+                                    if det["data"].get(k):
+                                        it[k] = det["data"][k]
+
                     result["domestic_recalls"] = res_dr["items"]
                     result["danger_count"] += len(res_dr["items"])
                     result["has_danger"] = True

@@ -258,27 +258,49 @@ def render_user_service():
                         dom_recalls = safety_res.get("domestic_recalls", [])
                         if dom_recalls:
                             for dr in dom_recalls:
+                                r_uid = dr.get("recallUid")
+                                r_board_url = dr.get("source_url") or f"https://www.safetykorea.kr/recall/ajax/recallBoard?recallUid={r_uid}"
+                                
                                 st.markdown(f"""
-                                <div style="background: rgba(220, 53, 69, 0.15); border: 2px solid #ef4444; border-radius: 10px; padding: 16px; margin-bottom: 14px;">
-                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <div style="background: rgba(220, 53, 69, 0.15); border: 2px solid #ef4444; border-radius: 10px; padding: 18px; margin-bottom: 14px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                                         <h4 style="margin: 0; color: #ef4444;">🚨 [국표원] 유통제품 안전성 조사 리콜 명령 적발!</h4>
                                         <span class="badge-danger">{dr.get('recallTypeName', '명령에 따른 리콜')}</span>
                                     </div>
                                     <div style="font-size: 0.95rem; line-height: 1.6;">
                                         <div><strong>🏷️ 리콜 대상 제품명(모델명)</strong>: {dr.get('recallProductName', '-')} ({dr.get('recallModelName', '-')})</div>
+                                        <div><strong>📋 KC인증번호</strong>: <code>{dr.get('certNum', '-')}</code></div>
                                         <div><strong>🏢 사업자(수입/제조사)</strong>: {dr.get('recallCmpnyName', '-')} (문의: {dr.get('recallInqryTel', '-')})</div>
                                         <div><strong>📅 공표일자</strong>: {dr.get('publishDate', '-')} | <strong>제조국</strong>: {dr.get('makingCntryName', '-')}</div>
-                                        <div style="margin-top: 8px; background: rgba(0,0,0,0.25); padding: 10px; border-radius: 6px;">
+                                        <div style="margin-top: 10px; background: rgba(0,0,0,0.25); padding: 12px; border-radius: 8px;">
                                             <div style="color: #fca5a5; font-weight: bold;">⚠️ 적발된 결함 및 유해물질:</div>
-                                            <div style="white-space: pre-wrap; font-size: 0.9rem;">{dr.get('harmDscr', '-')}</div>
-                                            <div style="color: #fca5a5; font-weight: bold; margin-top: 6px;">🩺 인체 위해성 / 사고 우려:</div>
-                                            <div style="white-space: pre-wrap; font-size: 0.9rem;">{dr.get('accidentCaseDscr', '-')}</div>
-                                            <div style="color: #6ee7b7; font-weight: bold; margin-top: 6px;">🛑 소비자 조치 사항:</div>
+                                            <div style="white-space: pre-wrap; font-size: 0.9rem; margin-bottom: 6px;">{dr.get('harmDscr', '-')}</div>
+                                            <div style="color: #fca5a5; font-weight: bold;">🩺 인체 위해성 / 사고 우려:</div>
+                                            <div style="white-space: pre-wrap; font-size: 0.9rem; margin-bottom: 6px;">{dr.get('accidentCaseDscr', '-')}</div>
+                                            <div style="color: #6ee7b7; font-weight: bold;">🛑 소비자 조치 사항:</div>
                                             <div style="white-space: pre-wrap; font-size: 0.9rem;">{dr.get('publishActionDscr', '-')}</div>
                                         </div>
                                     </div>
                                 </div>
                                 """, unsafe_allow_html=True)
+                                
+                                # 공식 웹사이트 상세 게시판 링크
+                                st.markdown(f"👉 **[🔗 국표원 SafetyKorea 공식 리콜 상세 공고문 보기 ({r_board_url})]({r_board_url})**")
+
+                                # 리콜 실물 사진 목록 (전체사진, 부분사진)
+                                r_files = dr.get("recallFiles") or []
+                                if not r_files and r_uid:
+                                    det = safetykorea_api.get_domestic_recall_detail(r_uid)
+                                    if det.get("success") and det.get("data"):
+                                        r_files = det["data"].get("recallFiles") or []
+
+                                if r_files:
+                                    st.markdown(f"**📸 국표원 등록 공식 리콜 사진 (총 {len(r_files)}장)**")
+                                    r_cols = st.columns(min(len(r_files), 4))
+                                    for idx, (rf, rc) in enumerate(zip(r_files, r_cols)):
+                                        with rc:
+                                            f_div = rf.get("fileDiv") or f"사진 #{idx+1}"
+                                            st.image(rf.get("imageUrl"), caption=f_div, use_container_width=True)
 
                         # 3. 해외직구 안전성조사결과 부적합 적발 카드 (알리/테무 등)
                         os_safeties = safety_res.get("overseas_safety", [])
@@ -768,13 +790,32 @@ def render_safety_db_section():
                         items = res.get("items", [])
                         st.write(f"조회 결과: 총 **{len(items):,}** 건")
                         for item in items[:15]:
+                            u_id = item.get("recallUid")
+                            r_url = f"https://www.safetykorea.kr/recall/ajax/recallBoard?recallUid={u_id}" if u_id else "https://www.safetykorea.kr"
+                            
                             with st.expander(f"[{item.get('recallTypeName', '리콜')}] {item.get('recallProductName', '-')} ({item.get('recallModelName', '-')})"):
                                 st.error(f"**리콜 사업자**: {item.get('recallCmpnyName', '-')} (문의: {item.get('recallInqryTel', '-')})")
+                                if item.get("certNum"):
+                                    st.write(f"- **인증번호**: `{item.get('certNum')}`")
                                 st.write(f"- **공표일자**: {item.get('publishDate', '-')}")
                                 st.write(f"- **제조국가**: {item.get('makingCntryName', '-')}")
                                 st.write(f"- **제품 결함**: {item.get('harmDscr', '상세내용 확인')}")
                                 st.write(f"- **사고/위해정보**: {item.get('accidentCaseDscr', '-')}")
                                 st.write(f"- **소비자 행동요령/조치사항**: {item.get('publishActionDscr', '-')}")
+                                
+                                st.markdown(f"👉 **[🔗 SafetyKorea 공식 리콜 상세 공고문 보기 ({r_url})]({r_url})**")
+                                
+                                if u_id:
+                                    det = safetykorea_api.get_domestic_recall_detail(u_id)
+                                    if det.get("success") and det.get("data"):
+                                        r_files = det["data"].get("recallFiles") or []
+                                        if r_files:
+                                            st.markdown(f"**📸 국표원 공식 리콜 사진 (총 {len(r_files)}장)**")
+                                            r_cols = st.columns(min(len(r_files), 4))
+                                            for idx, (rf, rc) in enumerate(zip(r_files, r_cols)):
+                                                with rc:
+                                                    f_div = rf.get("fileDiv") or f"사진 #{idx+1}"
+                                                    st.image(rf.get("imageUrl"), caption=f_div, use_container_width=True)
                     else:
                         st.error(f"조회 실패: {res.get('error')}")
 

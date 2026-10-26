@@ -42,7 +42,7 @@ class SafetyKoreaApi:
     # -------------------------------------------------------------
     # 1. KC 인증정보 조회
     # -------------------------------------------------------------
-    def search_certifications(self, query: str, condition_key: str = "all") -> Dict[str, Any]:
+    def search_certifications(self, query: str, condition_key: str = "all", page_no: int = 1, **kwargs) -> Dict[str, Any]:
         """
         KC인증정보 조회
         condition_key: all(전체), certNum(인증번호), productName(제품명), modelName(모델명), certDate(인증일자), signDate(등록일)
@@ -89,7 +89,7 @@ class SafetyKoreaApi:
     # -------------------------------------------------------------
     # 2. 국내리콜정보 조회
     # -------------------------------------------------------------
-    def search_domestic_recalls(self, query: str, condition_key: str = "all") -> Dict[str, Any]:
+    def search_domestic_recalls(self, query: str, condition_key: str = "all", page_no: int = 1, **kwargs) -> Dict[str, Any]:
         """
         국내리콜정보 조회
         condition_key: all(전체), barcodeNum(바코드), recallProductName(제품명), recallBrandName(상표명), recallModelName(모델명), certNum(인증번호), publishDate(공표일자)
@@ -136,7 +136,7 @@ class SafetyKoreaApi:
     # -------------------------------------------------------------
     # 3. 국외리콜정보 조회
     # -------------------------------------------------------------
-    def search_foreign_recalls(self, query: str, condition_key: str = "all") -> Dict[str, Any]:
+    def search_foreign_recalls(self, query: str, condition_key: str = "all", page_no: int = 1, **kwargs) -> Dict[str, Any]:
         """
         국외리콜정보 조회
         condition_key: all, recallProductName, recallBrandName, recallModelName, publishDate, fRecallUid
@@ -170,7 +170,7 @@ class SafetyKoreaApi:
     # -------------------------------------------------------------
     # 4. 해외직구 안전성조사결과 정보 조회
     # -------------------------------------------------------------
-    def search_overseas_safety(self, query: str, condition_key: str = "all") -> Dict[str, Any]:
+    def search_overseas_safety(self, query: str, condition_key: str = "all", page_no: int = 1, **kwargs) -> Dict[str, Any]:
         """
         해외직구 안전성조사결과 정보 조회
         condition_key: all, productName, modelName, publishDate, overseasUid

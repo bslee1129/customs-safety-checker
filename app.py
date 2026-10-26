@@ -487,27 +487,42 @@ def render_admin_service():
         if st.button("범정부 API 통신 상태 즉시 점검", type="secondary"):
             with st.spinner("각 기관 전산망 통신 상태 확인 중..."):
                 # SafetyKorea 핑
-                t0 = time.time()
-                sk_ping = safetykorea_api.search_certifications(query="어린이", condition_key="productName", page_no=1)
-                sk_lat = round((time.time() - t0) * 1000, 1)
+                try:
+                    t0 = time.time()
+                    sk_res = safetykorea_api.get_status()
+                    sk_lat = round((time.time() - t0) * 1000, 1)
+                    sk_ok = sk_res.get("connected", False)
+                except Exception as e:
+                    sk_lat = 0
+                    sk_ok = False
 
                 # 전파연구원 핑
-                t1 = time.time()
-                rra_ping = rra_api.lookup_conformity("R-REM-Y15-YW1801")
-                rra_lat = round((time.time() - t1) * 1000, 1)
+                try:
+                    t1 = time.time()
+                    rra_res = rra_api.lookup_conformity("R-REM-Y15-YW1801")
+                    rra_lat = round((time.time() - t1) * 1000, 1)
+                    rra_ok = rra_res.get("success", False)
+                except Exception as e:
+                    rra_lat = 0
+                    rra_ok = False
 
                 # 식약처 핑
-                t2 = time.time()
-                food_status = food_safety_api.get_status()
-                food_lat = round((time.time() - t2) * 1000, 1)
+                try:
+                    t2 = time.time()
+                    food_status = food_safety_api.get_status()
+                    food_lat = round((time.time() - t2) * 1000, 1)
+                    food_ok = food_status.get("connected", False)
+                except Exception as e:
+                    food_lat = 0
+                    food_ok = False
 
                 p1, p2, p3 = st.columns(3)
                 with p1:
-                    st.metric("국표원 SafetyKorea", f"{sk_lat} ms", delta="정상" if sk_ping.get("success") else "지연")
+                    st.metric("국표원 SafetyKorea", f"{sk_lat} ms" if sk_lat else "연결실패", delta="정상" if sk_ok else "오류")
                 with p2:
-                    st.metric("국립전파연구원 RRA", f"{rra_lat} ms", delta="정상" if rra_ping.get("success") else "지연")
+                    st.metric("국립전파연구원 RRA", f"{rra_lat} ms" if rra_lat else "연결실패", delta="정상" if rra_ok else "오류")
                 with p3:
-                    st.metric("식품안전나라 API", f"{food_lat} ms", delta="정상" if food_status.get("connected") else "오류")
+                    st.metric("식품안전나라 API", f"{food_lat} ms" if food_lat else "연결실패", delta="정상" if food_ok else "오류")
 
     # 3. 데이터 총 건수 및 통계 현황
     with adm_tab3:

@@ -23,6 +23,7 @@ except Exception:
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 FOOD_SAFETY_API_KEY = os.getenv("FOOD_SAFETY_API_KEY", "")
 FOOD_SAFETY_SERVICE_ID = os.getenv("FOOD_SAFETY_SERVICE_ID", "I2715")
+SAFETYKOREA_API_KEY = os.getenv("SAFETYKOREA_API_KEY", "")
 
 # 서버 설정
 HOST = os.getenv("HOST", "0.0.0.0")

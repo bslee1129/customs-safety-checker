@@ -27,6 +27,7 @@ from config import (
 from services.food_safety_api import food_safety_api
 from services.db_service import db_service
 from services.ai_vision_service import ai_vision_service
+from services.safetykorea_api import safetykorea_api
 
 app = FastAPI(
     title="관세청 AI 위해식품·불법의약품 스마트 검사관",
@@ -150,6 +151,34 @@ async def list_drugs(
     """위해식품/불법의약품 목록 검색 및 페이징"""
     result = db_service.search(query=q, page=page, page_size=page_size)
     return result
+
+# -------------------------------------------------------------
+# 국가기술표준원 SafetyKorea 4대 제품안전정보 API
+# -------------------------------------------------------------
+@app.get("/api/safetykorea/cert")
+async def get_kc_cert(q: str = Query(..., description="검색어"), cond: str = Query("all")):
+    """KC인증정보 조회"""
+    return safetykorea_api.search_certifications(query=q, condition_key=cond)
+
+@app.get("/api/safetykorea/recall/domestic")
+async def get_domestic_recall(q: str = Query(..., description="검색어"), cond: str = Query("all")):
+    """국내리콜정보 조회"""
+    return safetykorea_api.search_domestic_recalls(query=q, condition_key=cond)
+
+@app.get("/api/safetykorea/recall/foreign")
+async def get_foreign_recall(q: str = Query(..., description="검색어"), cond: str = Query("all")):
+    """국외리콜정보 조회"""
+    return safetykorea_api.search_foreign_recalls(query=q, condition_key=cond)
+
+@app.get("/api/safetykorea/overseas")
+async def get_overseas_safety(q: str = Query(..., description="검색어"), cond: str = Query("all")):
+    """해외직구 안전성조사결과 조회"""
+    return safetykorea_api.search_overseas_safety(query=q, condition_key=cond)
+
+@app.get("/api/safetykorea/comprehensive")
+async def check_safetykorea(product_name: str = Query(""), barcode: str = Query("")):
+    """국표원 4대 안전정보 원스톱 종합 대조"""
+    return safetykorea_api.comprehensive_check(product_name=product_name, barcode=barcode)
 
 # -------------------------------------------------------------
 # 작업 2: 사진 촬영 및 1:1 비교 대조 검사 API

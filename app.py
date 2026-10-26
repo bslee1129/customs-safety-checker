@@ -213,6 +213,7 @@ def render_user_service():
                         safety_res = safetykorea_api.comprehensive_check(
                             product_name=p_name,
                             barcode=b_code,
+                            kc_cert_num=kc_num,
                             cert_num=kc_num
                         )
                         rra_res_list = rra_api.multi_lookup(rra_nums)

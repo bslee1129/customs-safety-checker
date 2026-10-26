@@ -204,10 +204,22 @@ class SafetyKoreaApi:
     # -------------------------------------------------------------
     # 5. 제품명/모델명/바코드 4대 안전정보 통합 원스톱 점검
     # -------------------------------------------------------------
-    def comprehensive_check(self, product_name: str = "", model_name: str = "", barcode: str = "", kc_cert_num: str = "", product_name_ko: str = "") -> Dict[str, Any]:
+    def comprehensive_check(
+        self, 
+        product_name: str = "", 
+        model_name: str = "", 
+        barcode: str = "", 
+        kc_cert_num: str = "", 
+        product_name_ko: str = "",
+        cert_num: str = "",
+        **kwargs
+    ) -> Dict[str, Any]:
         """
         KC인증번호, 제품명, 모델명, 바코드로 4대 안전정보를 원스톱 일괄 조회하고 종합 위험도를 판정합니다.
         """
+        # cert_num 또는 kc_num 별칭 지원
+        kc_cert_num = kc_cert_num or cert_num or kwargs.get("kc_num", "")
+
         result = {
             "overseas_safety": [],     # 해외직구 안전성 부적합
             "domestic_recalls": [],    # 국내리콜

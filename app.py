@@ -28,6 +28,27 @@ from services.rra_api import rra_api
 # 커스텀 CSS 스타일링
 st.markdown("""
 <style>
+    /* 모바일 반응형 베이스 */
+    @media (max-width: 768px) {
+        .user-header, .admin-header {
+            padding: 16px 14px !important;
+            margin-bottom: 14px !important;
+            border-radius: 10px !important;
+        }
+        .user-header h1, .admin-header h1 {
+            font-size: 1.4rem !important;
+            line-height: 1.3 !important;
+        }
+        .user-header p, .admin-header p {
+            font-size: 0.85rem !important;
+        }
+        .stButton button {
+            min-height: 48px !important;
+            font-size: 1rem !important;
+            font-weight: bold !important;
+        }
+    }
+    
     .user-header {
         background: linear-gradient(135deg, #0d3b66 0%, #1e3a8a 100%);
         color: white;
@@ -154,46 +175,47 @@ def render_user_service():
         st.markdown("### 📷 제품 사진 AI 안심 검사")
         st.write("의심 제품의 **전면(제품명), 후면(원재료/성분표), 측면(바코드, KC/전파인증마크)** 사진을 1장 또는 여러 장 등록하세요.")
 
-        col1, col2 = st.columns([1, 1])
-        with col1:
-            st.subheader("1️⃣ 사진 등록 (다중 선택 가능)")
-            uploaded_files = st.file_uploader(
-                "제품 사진 파일 선택 (여러 장 등록 가능)",
-                type=["jpg", "jpeg", "png", "webp"],
-                accept_multiple_files=True,
-                key="user_upload_files"
-            )
+        # 1️⃣ 사진 등록 영역 (상단)
+        st.subheader("1️⃣ 사진 등록 및 촬영 (다중 선택 가능)")
+        uploaded_files = st.file_uploader(
+            "제품 사진 파일 선택 (여러 장 등록 가능)",
+            type=["jpg", "jpeg", "png", "webp"],
+            accept_multiple_files=True,
+            key="user_upload_files"
+        )
+        
+        with st.expander("📷 스마트폰 카메라로 직접 촬영하기"):
+            cam_pic = st.camera_input("카메라 촬영", key="user_cam")
+            if cam_pic:
+                if st.button("촬영한 사진 목록에 추가", key="user_add_cam"):
+                    st.session_state["camera_photos"].append(cam_pic.getvalue())
+                    st.success(f"촬영 사진 {len(st.session_state['camera_photos'])}장 추가됨!")
+
+        total_images_bytes = []
+        if uploaded_files:
+            for uf in uploaded_files:
+                total_images_bytes.append(uf.getvalue())
+        if st.session_state["camera_photos"]:
+            total_images_bytes.extend(st.session_state["camera_photos"])
+
+        if total_images_bytes:
+            st.write(f"**현재 등록된 사진: 총 {len(total_images_bytes)}장**")
+            img_cols = st.columns(min(len(total_images_bytes), 4))
+            for i, b_data in enumerate(total_images_bytes):
+                with img_cols[i % len(img_cols)]:
+                    st.image(b_data, caption=f"사진 #{i+1}", use_container_width=True)
             
-            with st.expander("📷 스마트폰 / 웹캠으로 직접 촬영하기"):
-                cam_pic = st.camera_input("카메라 촬영", key="user_cam")
-                if cam_pic:
-                    if st.button("촬영한 사진 목록에 추가", key="user_add_cam"):
-                        st.session_state["camera_photos"].append(cam_pic.getvalue())
-                        st.success(f"촬영 사진 {len(st.session_state['camera_photos'])}장 추가됨!")
+            if st.button("등록된 사진 초기화", key="user_reset_imgs"):
+                st.session_state["camera_photos"] = []
+                st.rerun()
 
-            total_images_bytes = []
-            if uploaded_files:
-                for uf in uploaded_files:
-                    total_images_bytes.append(uf.getvalue())
-            if st.session_state["camera_photos"]:
-                total_images_bytes.extend(st.session_state["camera_photos"])
+        st.markdown("")
+        run_inspect = st.button("🚀 AI 안심 진단 시작하기", type="primary", use_container_width=True, key="user_inspect_btn")
+        st.markdown("---")
 
-            if total_images_bytes:
-                st.write(f"**현재 등록된 사진: 총 {len(total_images_bytes)}장**")
-                img_cols = st.columns(min(len(total_images_bytes), 4))
-                for i, b_data in enumerate(total_images_bytes):
-                    with img_cols[i % 4]:
-                        st.image(b_data, caption=f"사진 #{i+1}", use_container_width=True)
-                
-                if st.button("등록된 사진 초기화", key="user_reset_imgs"):
-                    st.session_state["camera_photos"] = []
-                    st.rerun()
-
-            run_inspect = st.button("🚀 AI 안심 진단 시작하기", type="primary", use_container_width=True, key="user_inspect_btn")
-
-        with col2:
-            st.subheader("2️⃣ 안심 진단 결과")
-            if run_inspect:
+        # 2️⃣ 안심 진단 결과 (하단 - 사진 등록 아래로)
+        st.subheader("2️⃣ 안심 진단 결과")
+        if run_inspect:
                 if not total_images_bytes:
                     st.warning("먼저 검사할 사진을 등록하거나 촬영해 주세요.")
                 else:
@@ -463,6 +485,8 @@ def render_user_service():
                                                     st.image(img_url, caption=f"사진 #{idx+1}", use_container_width=True)
                             else:
                                 st.info(f"추출된 KC인증번호(`{kc_num}`)가 SafetyKorea 목록에서 즉시 매칭되지 않았습니다. 서브탭에서 상세 조회가 가능합니다.")
+        else:
+            st.info("👆 위에서 검사할 제품의 사진을 촬영하거나 등록한 뒤, **[🚀 AI 안심 진단 시작하기]** 버튼을 눌러주세요.")
 
     # 탭 2: 범정부 안전인증 DB (국표원 + 전파연구원)
     with tab2:

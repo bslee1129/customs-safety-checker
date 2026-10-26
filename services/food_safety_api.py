@@ -72,9 +72,16 @@ class FoodSafetyApiService:
                 prdt_nm = str(item.get("PRDT_NM", "")).strip()
                 ingr_nm = str(item.get("INGR_NM_LST", "") or item.get("HARMFUL_INGR_LST", "")).strip()
                 mufc_nm = str(item.get("MUFC_NM", "")).strip()
-                barcode = str(item.get("BARCODE", "") or item.get("BAR_CD", "")).strip()
-                reg_date = str(item.get("CRET_DT", "") or item.get("LAST_UPDT_DTM", "")).strip()
-                img_url = str(item.get("IMAGE_URL", "") or item.get("FILE_URL", "")).strip()
+                country = str(item.get("MUFC_CNTRY_NM", "")).strip()
+                barcode = str(item.get("BARCD_CTN", "") or item.get("BARCODE", "") or item.get("BAR_CD", "")).strip()
+                reg_date = str(item.get("CRET_DTM", "") or item.get("CRET_DT", "") or item.get("LAST_UPDT_DTM", "")).strip()
+                img_url_raw = str(item.get("IMAGE_URL", "") or item.get("FILE_URL", "")).strip()
+                
+                # 이미지 URL이 여러 개(쉼표 분리)일 경우 첫 번째 유효 URL 선택
+                img_url = ""
+                if img_url_raw:
+                    urls = [u.strip() for u in img_url_raw.split(",") if u.strip().startswith("http")]
+                    img_url = urls[0] if urls else img_url_raw
 
                 local_img = ""
                 # 이미지 다운로드 요청 시 처리
@@ -98,10 +105,11 @@ class FoodSafetyApiService:
                     "등록일자": reg_date,
                     "성분명": ingr_nm,
                     "제조사명": mufc_nm,
-                    "통관보류사유내용": f"{ingr_nm} 검출" if ingr_nm else "위해성분 검출",
+                    "제조국가명": country,
+                    "통관보류사유내용": f"{ingr_nm} 검출 (식품안전나라 해외직구 차단)" if ingr_nm else "식품안전나라 해외직구 위해식품 차단",
                     "원본이미지URL": img_url,
                     "저장된이미지경로": local_img,
-                    "정보출처": "식품안전나라(I2715)"
+                    "정보출처": "식품안전나라 공식 Open API(I2715)"
                 })
 
             return {
@@ -115,4 +123,32 @@ class FoodSafetyApiService:
         except Exception as e:
             return {"success": False, "error": str(e), "rows": []}
 
+    def fetch_all_records(self, batch_size: int = 1000) -> Dict[str, Any]:
+        """식품안전나라 API 서버의 전체 데이터(5,000+건)를 일괄 수집"""
+        status = self.get_status()
+        if not status.get("connected"):
+            return {"success": False, "error": f"API 연결 실패: {status.get('error')}", "rows": []}
+
+        total_count = status.get("total_count", 0)
+        print(f"[INFO] 식품안전나라 API 전체 데이터 수집 시작 (총 {total_count}건, {batch_size}건 단위 호출)...")
+
+        all_rows = []
+        for start in range(1, total_count + 1, batch_size):
+            end = min(start + batch_size - 1, total_count)
+            print(f"[INFO] 구간 수집 중: {start} ~ {end} ...")
+            res = self.fetch_records(start=start, end=end, download_images=False)
+            if res.get("success"):
+                all_rows.extend(res.get("rows", []))
+            else:
+                print(f"[WARNING] 구간 {start}~{end} 수집 실패: {res.get('error')}")
+
+        print(f"[SUCCESS] 식품안전나라 API 전체 데이터 수집 완료: 총 {len(all_rows)}건 확보")
+        return {
+            "success": True,
+            "total_count": total_count,
+            "count": len(all_rows),
+            "rows": all_rows
+        }
+
 food_safety_api = FoodSafetyApiService()
+

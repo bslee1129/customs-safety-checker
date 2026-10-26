@@ -16,6 +16,7 @@ class ApiSyncManager {
     this.statHarmfulTotal = document.getElementById("statHarmfulTotal");
     this.statImagesCount = document.getElementById("statImagesCount");
 
+    this.btnSyncAll = document.getElementById("btnSyncAll");
     this.btnSync100 = document.getElementById("btnSync100");
     this.btnSync500 = document.getElementById("btnSync500");
     this.btnCustomSync = document.getElementById("btnCustomSync");
@@ -33,6 +34,9 @@ class ApiSyncManager {
   }
 
   bindEvents() {
+    if (this.btnSyncAll) {
+      this.btnSyncAll.addEventListener("click", () => this.executeSyncAll());
+    }
     if (this.btnSync100) {
       this.btnSync100.addEventListener("click", () => this.executeSync(1, 100));
     }
@@ -108,6 +112,38 @@ class ApiSyncManager {
       this.log(`🌐 시스템 통계 로드 완료: DB ${db.total_records}건 / 정부 서버 총 ${api.total_count || 0}건`);
     } catch (e) {
       this.log(`🚨 상태 확인 실패: ${e.message}`);
+    }
+  }
+
+  async executeSyncAll() {
+    if (!confirm("식품안전나라 서버의 전체 5,000여 건 차단 데이터를 전건 수집하여 자체 SQLite DB를 전면 갱신하시겠습니까?")) {
+      return;
+    }
+    if (this.progressContainer) this.progressContainer.style.display = "block";
+    if (this.progressBar) this.progressBar.style.width = "25%";
+
+    this.log("🔄 식품안전나라 공식 Open API 전체 데이터 일괄 수집 시작...");
+
+    try {
+      if (this.progressBar) this.progressBar.style.width = "60%";
+      const res = await fetch("/api/sync/all", { method: "POST" });
+      if (!res.ok) throw new Error(`HTTP 에러 ${res.status}`);
+
+      const data = await res.json();
+      if (this.progressBar) this.progressBar.style.width = "100%";
+
+      this.log(`🎉 전체 갱신 완료! 자체 SQLite DB에 총 ${data.total_count.toLocaleString()}건 저장 완료.`);
+      setTimeout(() => {
+        if (this.progressContainer) this.progressContainer.style.display = "none";
+      }, 1500);
+
+      await this.checkStatus();
+      this.currentPage = 1;
+      this.loadTableData();
+    } catch (e) {
+      this.log(`🚨 전체 동기화 오류: ${e.message}`);
+      if (this.progressBar) this.progressBar.style.width = "0%";
+      alert(`전체 동기화 실패: ${e.message}`);
     }
   }
 

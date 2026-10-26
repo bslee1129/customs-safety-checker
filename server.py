@@ -119,6 +119,25 @@ async def fetch_api_data(req: SyncRequest):
         "sample_records": new_rows[:5]
     }
 
+@app.post("/api/sync/all")
+async def sync_all_from_api():
+    """식품안전나라 공식 Open API 전체 데이터를 수집하여 자체 DB 전면 갱신"""
+    status = food_safety_api.get_status()
+    if not status.get("connected"):
+        return JSONResponse(status_code=500, content={"success": False, "error": status.get("error")})
+    
+    res = food_safety_api.fetch_all_records(batch_size=1000)
+    if not res.get("success"):
+        return JSONResponse(status_code=500, content=res)
+    
+    rows = res.get("rows", [])
+    inserted_count = db_service.replace_all_from_api(rows)
+    return {
+        "success": True,
+        "total_count": inserted_count,
+        "stats": db_service.get_stats()
+    }
+
 # -------------------------------------------------------------
 # 차단 목록 검색 API
 # -------------------------------------------------------------

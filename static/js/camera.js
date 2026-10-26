@@ -136,7 +136,7 @@ class CameraManager {
 
   async sendPhotoForInspection(blobOrFile) {
     this.setScanning(true);
-    this.updateStatus("AI 멀티모달 Vision 분석 & DB 1:1 대조 중...", "warning");
+    this.updateStatus("AI 약품 라벨 판독 & 반입 가능 여부 분석 중...", "warning");
 
     const formData = new FormData();
     formData.append("file", blobOrFile, "inspect_photo.jpg");
@@ -166,7 +166,7 @@ class CameraManager {
         window.ComparisonViewer.render(result);
       }
 
-      this.updateStatus("AI 분석 및 1:1 대조 완료", "success");
+      this.updateStatus("반입 판별 및 안전성 분석 완료", "success");
     } catch (err) {
       console.error("검사 실패:", err);
       alert(`검사 오류 발생: ${err.message}`);

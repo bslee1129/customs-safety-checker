@@ -26,20 +26,10 @@ DATA_DIR.mkdir(exist_ok=True)
 TEMP_UPLOADS_DIR = BASE_DIR / "temp_uploads"
 TEMP_UPLOADS_DIR.mkdir(exist_ok=True)
 
-# 기존 DB 엑셀 파일 탐색 (1. 새 프로젝트 data/, 2. 상위 워크스페이스)
-EXCEL_DB_CANDIDATES = [
-    DATA_DIR / "불법의약품DB.xlsx",
-    WORKSPACE_DIR / "불법의약품DB.xlsx",
-    WORKSPACE_DIR / "Customs_AI_Bot" / "불법의약품DB.xlsx",
-]
+# 자체 SQLite 데이터베이스 경로 (식품안전나라 공식 Open API 수집 전용)
+SQLITE_DB_PATH = DATA_DIR / "customs_safety.db"
 
-DB_EXCEL_PATH = None
-for p in EXCEL_DB_CANDIDATES:
-    if p.exists():
-        DB_EXCEL_PATH = p
-        break
-
-# 로컬 캐시 JSON 경로
+# 로컬 캐시 JSON 경로 (보조 백업용)
 LOCAL_DB_JSON_PATH = DATA_DIR / "drugs_db_cache.json"
 
 # 기존 다운로드 이미지 디렉터리 탐색

@@ -239,7 +239,61 @@ def render_user_service():
                         else:
                             st.success("✅ [정상 / 차단 미등록] 위해식품 차단 목록 및 리콜 이력에 등재되지 않은 품목입니다.")
 
-                        # 전파인증/KC인증 카드
+                        # 1. 식약처 위해식품 차단 적발 카드
+                        if is_blocked:
+                            db_rec = match_result.get("record", {})
+                            st.markdown(f"""
+                            <div style="background: rgba(220, 53, 69, 0.15); border: 2px solid #dc3545; border-radius: 10px; padding: 16px; margin-bottom: 14px;">
+                                <h4 style="margin: 0 0 10px 0; color: #ff6b6b;">🚫 [식약처] 해외직구 차단식품·불법성분 등재 확인</h4>
+                                <div style="font-size: 0.95rem; line-height: 1.6;">
+                                    - <strong>등록 제품명</strong>: {db_rec.get('제품명', '-')}<br>
+                                    - <strong>검출 위해성분</strong>: <span class="badge-danger">{db_rec.get('성분명', '-')}</span><br>
+                                    - <strong>차단/회수 사유</strong>: {db_rec.get('회수사유') or '인체 유해 우려 원료 포함'}<br>
+                                    - <strong>제조사 / 제조국</strong>: {db_rec.get('제조사', '-')} / {db_rec.get('제조국', '-')}<br>
+                                </div>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                        # 2. 국가기술표준원 국내 리콜 적발 카드
+                        dom_recalls = safety_res.get("domestic_recalls", [])
+                        if dom_recalls:
+                            for dr in dom_recalls:
+                                st.markdown(f"""
+                                <div style="background: rgba(220, 53, 69, 0.15); border: 2px solid #ef4444; border-radius: 10px; padding: 16px; margin-bottom: 14px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                        <h4 style="margin: 0; color: #ef4444;">🚨 [국표원] 유통제품 안전성 조사 리콜 명령 적발!</h4>
+                                        <span class="badge-danger">{dr.get('recallTypeName', '명령에 따른 리콜')}</span>
+                                    </div>
+                                    <div style="font-size: 0.95rem; line-height: 1.6;">
+                                        <div><strong>🏷️ 리콜 대상 제품명(모델명)</strong>: {dr.get('recallProductName', '-')} ({dr.get('recallModelName', '-')})</div>
+                                        <div><strong>🏢 사업자(수입/제조사)</strong>: {dr.get('recallCmpnyName', '-')} (문의: {dr.get('recallInqryTel', '-')})</div>
+                                        <div><strong>📅 공표일자</strong>: {dr.get('publishDate', '-')} | <strong>제조국</strong>: {dr.get('makingCntryName', '-')}</div>
+                                        <div style="margin-top: 8px; background: rgba(0,0,0,0.25); padding: 10px; border-radius: 6px;">
+                                            <div style="color: #fca5a5; font-weight: bold;">⚠️ 적발된 결함 및 유해물질:</div>
+                                            <div style="white-space: pre-wrap; font-size: 0.9rem;">{dr.get('harmDscr', '-')}</div>
+                                            <div style="color: #fca5a5; font-weight: bold; margin-top: 6px;">🩺 인체 위해성 / 사고 우려:</div>
+                                            <div style="white-space: pre-wrap; font-size: 0.9rem;">{dr.get('accidentCaseDscr', '-')}</div>
+                                            <div style="color: #6ee7b7; font-weight: bold; margin-top: 6px;">🛑 소비자 조치 사항:</div>
+                                            <div style="white-space: pre-wrap; font-size: 0.9rem;">{dr.get('publishActionDscr', '-')}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                """, unsafe_allow_html=True)
+
+                        # 3. 해외직구 안전성조사결과 부적합 적발 카드 (알리/테무 등)
+                        os_safeties = safety_res.get("overseas_safety", [])
+                        if os_safeties:
+                            for os_item in os_safeties:
+                                st.markdown(f"""
+                                <div style="background: rgba(220, 53, 69, 0.15); border: 2px solid #ef4444; border-radius: 10px; padding: 16px; margin-bottom: 14px;">
+                                    <h4 style="margin: 0 0 8px 0; color: #ef4444;">📦 [국표원] 해외직구(알리·테무 등) 유해물질 기준초과 적발</h4>
+                                    <div><strong>제품명(모델명)</strong>: {os_item.get('productName', '-')} ({os_item.get('modelName', '-')})</div>
+                                    <div style="color: #fca5a5; margin-top: 4px;"><strong>🚨 위해 내용</strong>: {os_item.get('harmDscr', '-')}</div>
+                                    <div><strong>공표일자</strong>: {os_item.get('publishDate', '-')} | 제조국: {os_item.get('makingCntryName', '-')}</div>
+                                </div>
+                                """, unsafe_allow_html=True)
+
+                        # 4. 전파인증 카드
                         if rra_res_list:
                             st.markdown("#### 📡 국립전파연구원 전자파 적합성평가(KC 전파인증) 대조")
                             for rr in rra_res_list:
@@ -259,15 +313,30 @@ def render_user_service():
                                 else:
                                     st.warning(f"⚠️ 전파인증번호 '{rr.get('query')}'는 전파연구원에 등록되지 않았거나 일치하지 않습니다.")
 
+                        # 5. KC 인증번호 카드
                         if kc_num:
-                            st.markdown("#### 🏷️ 국가기술표준원 KC인증번호 대조")
+                            st.markdown("#### 🏷️ 국가기술표준원 KC안전인증 대조")
                             cert_matches = safety_res.get("certifications", [])
                             if cert_matches:
                                 for cm in cert_matches:
                                     c_num = cm.get("certNum")
-                                    st.markdown(f"**인증번호**: `{c_num}` | 상태: <span class='badge-safe'>{cm.get('certState', '적합')}</span>", unsafe_allow_html=True)
+                                    state = cm.get('certState', '적합')
+                                    has_recall_for_this = any(r.get("certNum") == c_num for r in dom_recalls)
+
+                                    if has_recall_for_this:
+                                        badge_html = "<span class='badge-warning'>인증상태: 적합</span> <span class='badge-danger'>🚨 사후조사 리콜 적발 품목</span>"
+                                    else:
+                                        badge_html = f"<span class='badge-safe'>인증상태: {state}</span>"
+
+                                    st.markdown(f"**인증번호**: `[{c_num}]` | {badge_html}", unsafe_allow_html=True)
                                     st.write(f"- 품목/모델: {cm.get('productName')} / {cm.get('modelName')}")
+                                    st.write(f"- 인증기관: {cm.get('certOrganName', '-')} | 인증일자: {cm.get('certDate', '-')}")
+                                    
+                                    if has_recall_for_this:
+                                        st.warning("⚠️ **주의**: 최초 안전확인 신고 시 '적합'으로 등록되었으나, 이후 정부 사후 안전성 조사에서 유해물질 기준치 초과가 확인되어 **리콜(강제 수거·환불) 명령**이 내려진 제품입니다.")
+
                                     st.markdown(f"[🔗 SafetyKorea 공식 상세조회](https://www.safetykorea.kr/search/searchPop?certNum={c_num})")
+                                    
                                     det = safetykorea_api.get_certification_detail(c_num)
                                     if det.get("success") and det.get("data"):
                                         kc_imgs = det["data"].get("certificationImageUrls") or []

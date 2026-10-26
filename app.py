@@ -643,7 +643,7 @@ def render_admin_service():
     if not st.session_state["admin_authenticated"]:
         with st.container():
             st.warning("🔒 관리자 전용 제어센터입니다. 접근을 위해 관리자 비밀번호를 입력해 주세요.")
-            admin_pwd = st.text_input("관리자 비밀번호", type="password", key="admin_pwd_input", placeholder="기본 비밀번호: customs2026")
+            admin_pwd = st.text_input("관리자 비밀번호", type="password", key="admin_pwd_input", placeholder="비밀번호를 입력하세요")
             
             c1, c2 = st.columns([1, 4])
             with c1:
@@ -655,7 +655,6 @@ def render_admin_service():
                         st.rerun()
                     else:
                         st.error("비밀번호가 올바르지 않습니다.")
-            st.caption("초기 데모 비밀번호: `customs2026`")
             return
 
     # 관리자 사이드바

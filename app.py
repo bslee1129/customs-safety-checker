@@ -392,10 +392,10 @@ def render_admin_service():
         st.markdown("---")
         st.subheader("📊 통합 DB 핵심 요약")
         stats = db_service.get_stats()
-        st.metric(label="차단 식품 데이터", value=f"{stats['total_records']:,} 건")
-        st.metric(label="등록 바코드 수", value=f"{stats['total_barcodes']:,} 개")
-        st.metric(label="식별 위해성분 수", value=f"{stats['total_harmful_ingredients']:,} 종")
-        st.caption(f"최종 DB 동기화: {stats['last_sync_time']}")
+        st.metric(label="차단 식품 데이터", value=f"{stats.get('total_records', 0):,} 건")
+        st.metric(label="등록 바코드 수", value=f"{stats.get('total_barcodes', 0):,} 개")
+        st.metric(label="식별 위해성분 수", value=f"{stats.get('total_harmful_ingredients', 0):,} 종")
+        st.caption(f"최종 DB 동기화: {stats.get('last_sync_time', '-')}")
 
     # 관리자 4대 제어 탭
     adm_tab1, adm_tab2, adm_tab3, adm_tab4 = st.tabs([
@@ -515,10 +515,10 @@ def render_admin_service():
         stats = db_service.get_stats()
         
         m1, m2, m3, m4 = st.columns(4)
-        m1.metric("총 위해식품 차단 건수", f"{stats['total_records']:,} 건")
-        m2.metric("등록 바코드 수", f"{stats['total_barcodes']:,} 개")
-        m3.metric("검출 위해성분 수", f"{stats['total_harmful_ingredients']:,} 종")
-        m4.metric("로컬 이미지 캐시", f"{stats['total_images']:,} 개")
+        m1.metric("총 위해식품 차단 건수", f"{stats.get('total_records', 0):,} 건")
+        m2.metric("등록 바코드 수", f"{stats.get('total_barcodes', 0):,} 개")
+        m3.metric("검출 위해성분 수", f"{stats.get('total_harmful_ingredients', 0):,} 종")
+        m4.metric("로컬 이미지 캐시", f"{stats.get('total_images', 0):,} 개")
 
         st.markdown("---")
         st.write("#### 📂 시스템 저장소 및 리소스 경로")

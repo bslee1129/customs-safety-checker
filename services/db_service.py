@@ -375,14 +375,23 @@ class DatabaseService:
 
     def get_stats(self) -> Dict[str, Any]:
         """데이터베이스 통계 및 메타정보"""
+        img_count = 0
+        try:
+            p_img = Path(PRODUCT_IMAGE_DIR)
+            if p_img.exists():
+                img_count = len([f for f in os.listdir(p_img) if f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp'))])
+        except Exception:
+            img_count = 0
+
         return {
             "total_records": len(self.records),
             "total_barcodes": len(self.barcode_map),
             "total_harmful_ingredients": len(self.harmful_ingredients_set),
+            "total_images": img_count,
             "db_type": "자체 SQLite DB (식품안전나라 공식 API 전용)",
             "db_file": str(self.db_path),
             "last_sync_time": self.last_sync_time or "동기화 이력 없음",
-            "has_local_images": Path(PRODUCT_IMAGE_DIR).exists() and len(os.listdir(PRODUCT_IMAGE_DIR)) > 0
+            "has_local_images": img_count > 0
         }
 
     def search(self, query: str = "", page: int = 1, page_size: int = 20) -> Dict[str, Any]:

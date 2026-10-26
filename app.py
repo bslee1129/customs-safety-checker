@@ -230,21 +230,114 @@ def render_user_service():
                             "elapsed": elapsed
                         })
 
-                        # 판정 결과 출력
+                        # 판정 배너 출력
                         is_blocked = match_result.get("matched")
                         has_safety_danger = safety_res.get("has_danger")
 
                         if is_blocked or has_safety_danger:
-                            st.error("🚨 [주의/반입주의 대상] 정부 위해물품 차단 또는 리콜 이력이 확인되었습니다!")
+                            st.error("### 🚨 [주의/반입주의 대상] 정부 위해물품 차단 또는 리콜 이력이 확인되었습니다!")
                         else:
-                            st.success("✅ [정상 / 차단 미등록] 위해식품 차단 목록 및 리콜 이력에 등재되지 않은 품목입니다.")
+                            st.success("### ✅ [정상 / 차단 미등록] 위해식품 차단 데이터베이스에 등재되지 않은 품목입니다.")
+
+                        # -------------------------------------------------------------
+                        # 📋 1:1 비교 대조 사진 영역 (현품 사진 vs 정부 DB 공식 등록 사진)
+                        # -------------------------------------------------------------
+                        st.markdown("### 📋 1:1 비교 대조 판정 결과")
+
+                        col_left, col_right = st.columns(2)
+                        with col_left:
+                            st.markdown("#### 📷 현품 검사 사진")
+                            st.caption("촬영/업로드된 실제 검사물품")
+                            if len(total_images_bytes) == 1:
+                                st.image(total_images_bytes[0], caption="촬영/업로드된 실제 검사물품", use_container_width=True)
+                            else:
+                                img_tabs = st.tabs([f"사진 #{i+1}" for i in range(len(total_images_bytes))])
+                                for i, i_tab in enumerate(img_tabs):
+                                    with i_tab:
+                                        st.image(total_images_bytes[i], caption=f"실제 검사물품 #{i+1}", use_container_width=True)
+
+                        with col_right:
+                            st.markdown("#### 🏛️ 관세청·정부 DB 공식 등록 원본 사진")
+                            st.caption("식품안전나라 / 국표원 공식 제공 이미지")
+
+                            # 1) 식약처 위해식품/의약품 차단 DB 사진 확인
+                            db_rec = match_result.get("record") or {}
+                            db_remote_url = match_result.get("db_remote_image_url") or db_rec.get("원본이미지URL")
+                            local_seq = db_rec.get("등록번호")
+                            local_img_path = None
+                            if local_seq:
+                                c1 = PRODUCT_IMAGE_DIR / f"img_{local_seq}.jpg"
+                                c2 = PRODUCT_IMAGE_DIR / f"{local_seq}.jpg"
+                                if c1.exists():
+                                    local_img_path = str(c1)
+                                elif c2.exists():
+                                    local_img_path = str(c2)
+
+                            # 2) 국표원 KC 안전인증 등록 사진
+                            kc_images = []
+                            if safety_res.get("kc_detail"):
+                                kc_images = safety_res["kc_detail"].get("certificationImageUrls") or []
+
+                            # 3) 국표원 리콜 제품 사진
+                            recall_images = []
+                            for dr in safety_res.get("domestic_recalls", []):
+                                for rf in dr.get("recallFiles", []):
+                                    if rf.get("imageUrl"):
+                                        recall_images.append(rf.get("imageUrl"))
+
+                            # 렌더링
+                            rendered_db_img = False
+                            if is_blocked and (local_img_path or db_remote_url):
+                                target_img = local_img_path if local_img_path else db_remote_url
+                                st.image(target_img, caption="식품안전나라 공식 제공 차단 제품 원본 사진", use_container_width=True)
+                                rendered_db_img = True
+                            elif recall_images:
+                                st.image(recall_images[0], caption="국가기술표준원 리콜 처분 공고 원본 사진", use_container_width=True)
+                                rendered_db_img = True
+                            elif kc_images:
+                                st.image(kc_images[0], caption="국가기술표준원 KC 공식 인증 등록 사진", use_container_width=True)
+                                rendered_db_img = True
+
+                            if not rendered_db_img:
+                                if is_blocked:
+                                    st.info("⚠️ 식품안전나라 차단 데이터에 등록 번호는 있으나, 등록된 사진 이미지가 없는 품목입니다.")
+                                else:
+                                    st.info("ℹ️ 위해식품 차단 데이터베이스에 미등재된 정상 품목이므로 차단 등록 사진이 없습니다.")
+
+                        # -------------------------------------------------------------
+                        # 🔍 세부 대조 내역 (AI 라벨 추출 정보 vs 정부 DB)
+                        # -------------------------------------------------------------
+                        with st.expander("🔍 세부 대조 내역 (1:1 상세 정보 대조)", expanded=True):
+                            col_d1, col_d2 = st.columns(2)
+                            with col_d1:
+                                st.markdown("**[AI 라벨 추출 정보]**")
+                                st.write(f"- **제품명**: {p_name or '-'}")
+                                st.write(f"- **제조사/브랜드**: {ocr_result.get('brand') or '-'}")
+                                st.write(f"- **바코드**: {b_code or '-'}")
+                                ings = ocr_result.get('ingredients', [])
+                                st.write(f"- **추출된 성분 수**: {len(ings)} 개")
+                                if ings:
+                                    st.caption(f"성분: {', '.join(ings[:15])}")
+                            with col_d2:
+                                st.markdown("**[DB 매칭 판정 정보]**")
+                                if is_blocked:
+                                    st.write(f"- **등록 제품명**: {db_rec.get('제품명', '-')}")
+                                    st.write(f"- **검출 위해성분**: <span class='badge-danger'>{db_rec.get('성분명', '-')}</span>", unsafe_allow_html=True)
+                                    st.write(f"- **반입금지 사유**: {db_rec.get('회수사유') or '위해성분 함유 차단'}")
+                                    st.write(f"- **정보 출처**: {db_rec.get('정보출처') or '식품안전나라 공식 Open API (I2715)'}")
+                                elif safety_res.get("has_danger"):
+                                    st.write(f"- **적발 유형**: 국표원 유통제품 안전성조사 리콜 적발")
+                                    st.write(f"- **관련 인증번호**: `{kc_num or '-'}`")
+                                else:
+                                    st.write("- **판정 결과**: 위해식품 차단 데이터베이스에 등재되지 않은 정상 품목입니다.")
+
+                        st.markdown("---")
 
                         # 1. 식약처 위해식품 차단 적발 카드
                         if is_blocked:
-                            db_rec = match_result.get("record", {})
                             st.markdown(f"""
                             <div style="background: rgba(220, 53, 69, 0.15); border: 2px solid #dc3545; border-radius: 10px; padding: 16px; margin-bottom: 14px;">
-                                <h4 style="margin: 0 0 10px 0; color: #ff6b6b;">🚫 [식약처] 해외직구 차단식품·불법성분 등재 확인</h4>
+                                <h4 style="margin: 0 0 10px 0; color: #ff6b6b;">🚫 [식약처] 해외직구 차단식품·불법의약품 등재 확인</h4>
                                 <div style="font-size: 0.95rem; line-height: 1.6;">
                                     - <strong>등록 제품명</strong>: {db_rec.get('제품명', '-')}<br>
                                     - <strong>검출 위해성분</strong>: <span class="badge-danger">{db_rec.get('성분명', '-')}</span><br>
@@ -370,13 +463,6 @@ def render_user_service():
                                                     st.image(img_url, caption=f"사진 #{idx+1}", use_container_width=True)
                             else:
                                 st.info(f"추출된 KC인증번호(`{kc_num}`)가 SafetyKorea 목록에서 즉시 매칭되지 않았습니다. 서브탭에서 상세 조회가 가능합니다.")
-
-                        # 라벨 추출 요약
-                        with st.expander("🔍 AI 라벨 인식 세부 정보 보기", expanded=True):
-                            st.write(f"- **제품명**: {p_name or '-'}")
-                            st.write(f"- **제조사/브랜드**: {ocr_result.get('brand') or '-'}")
-                            st.write(f"- **바코드**: {b_code or '-'}")
-                            st.write(f"- **추출 성분**: {', '.join(ocr_result.get('ingredients', [])) if ocr_result.get('ingredients') else '없음'}")
 
     # 탭 2: 범정부 안전인증 DB (국표원 + 전파연구원)
     with tab2:

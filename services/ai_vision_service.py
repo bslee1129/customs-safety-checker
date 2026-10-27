@@ -10,19 +10,38 @@ class AiVisionService:
     def __init__(self, api_key: str = GEMINI_API_KEY):
         self.api_key = api_key
         self.client = None
+        self.mode = None
         self.init_error = None
         self._init_client()
 
     def _init_client(self):
-        if self.api_key:
-            try:
-                from google import genai
-                self.client = genai.Client(api_key=self.api_key)
-                self.init_error = None
-            except Exception as e:
-                self.init_error = str(e)
-                print(f"⚠️ Gemini Client 초기화 실패: {e}")
-                self.client = None
+        if not self.api_key:
+            return
+        
+        # 1. 공식 최신 google-genai 시도
+        try:
+            from google import genai
+            self.client = genai.Client(api_key=self.api_key)
+            self.mode = "genai"
+            self.init_error = None
+            return
+        except Exception:
+            pass
+
+        # 2. 레거시 google-generativeai 시도 (호환성 보장)
+        try:
+            import google.generativeai as genai_legacy
+            genai_legacy.configure(api_key=self.api_key)
+            self.client = genai_legacy
+            self.mode = "legacy"
+            self.init_error = None
+            return
+        except Exception:
+            pass
+
+        self.init_error = "google-genai 패키지가 설치되지 않았습니다. 터미널에서 'pip install google-genai' 를 실행해 주세요."
+        self.client = None
+        self.mode = None
 
     def analyze_image(self, images: Union[bytes, List[bytes]]) -> Dict[str, Any]:
         """
@@ -79,6 +98,7 @@ class AiVisionService:
             }
 
         processed_parts = []
+        pil_images = []
         max_dim = 1600
 
         for idx, img_b in enumerate(image_list):
@@ -90,29 +110,22 @@ class AiVisionService:
                     pil_img.save(buf, format="JPEG", quality=85)
                     img_b = buf.getvalue()
                 
-                from google.genai import types
-                processed_parts.append(
-                    types.Part.from_bytes(data=img_b, mime_type="image/jpeg")
-                )
+                pil_images.append(pil_img)
+                if self.mode == "genai":
+                    from google.genai import types
+                    processed_parts.append(
+                        types.Part.from_bytes(data=img_b, mime_type="image/jpeg")
+                    )
             except Exception as e:
                 print(f"⚠️ {idx+1}번째 이미지 처리 오류: {e}")
                 continue
 
-        if not processed_parts:
+        if not pil_images and not processed_parts:
             return {
                 "success": False,
                 "error": "유효하게 처리된 사진이 없습니다.",
                 "data": None
             }
-
-        if not self.client:
-            self._init_client()
-            if not self.client:
-                return {
-                    "success": False,
-                    "error": "Gemini API 키가 설정되지 않았거나 클라이언트를 초기화할 수 없습니다. .env 또는 Secrets를 확인해주세요.",
-                    "data": None
-                }
 
         prompt = """
 당신은 대한민국 관세청과 식품의약품안전처, 국가기술표준원이 제공하는 '대국민 해외직구 및 통관 안전성 검사 도우미' AI 전문 자문관입니다.
@@ -157,10 +170,14 @@ class AiVisionService:
         last_error = None
         for model_name in models_to_try:
             try:
-                response = self.client.models.generate_content(
-                    model=model_name,
-                    contents=processed_parts + [prompt]
-                )
+                if self.mode == "genai":
+                    response = self.client.models.generate_content(
+                        model=model_name,
+                        contents=processed_parts + [prompt]
+                    )
+                else:
+                    model = self.client.GenerativeModel(model_name)
+                    response = model.generate_content(pil_images + [prompt])
                 
                 resp_text = response.text.strip()
                 # 마크다운 코드블록 제거

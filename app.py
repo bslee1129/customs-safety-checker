@@ -148,6 +148,28 @@ with st.sidebar:
         label_visibility="collapsed"
     )
     is_admin_mode = (mode == "관리자 콘솔 (세관·운영자)")
+    
+    with st.expander("🔑 AI 비전 엔진(Gemini) 설정", expanded=not bool(ai_vision_service.client)):
+        if ai_vision_service.client:
+            st.success("✅ Gemini AI 비전 엔진 연결 정상")
+        else:
+            st.warning("⚠️ Gemini API 키 입력이 필요합니다.")
+        
+        custom_key = st.text_input(
+            "Gemini API Key 입력",
+            value=st.session_state.get("user_gemini_key", ai_vision_service.api_key or ""),
+            type="password",
+            help="Google AI Studio(aistudio.google.com)에서 발급받은 API 키를 입력하세요.",
+            key="gemini_key_sidebar"
+        )
+        if custom_key:
+            st.session_state["user_gemini_key"] = custom_key
+            if custom_key != ai_vision_service.api_key or not ai_vision_service.client:
+                ai_vision_service.api_key = custom_key
+                ai_vision_service._init_client()
+                if ai_vision_service.client:
+                    st.success("✅ 새 API 키로 정상 연결되었습니다!")
+
     st.markdown("---")
 
 # =============================================================

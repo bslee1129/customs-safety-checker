@@ -1,6 +1,7 @@
 # Environment variables
 .env
 kcs.env
+.streamlit/secrets.toml
 
 # Python bytecode
 __pycache__/

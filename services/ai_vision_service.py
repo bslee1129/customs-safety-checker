@@ -4,12 +4,13 @@ import re
 import io
 from PIL import Image
 from typing import Dict, Any, Optional, List, Union
-from config import GEMINI_API_KEY
+from config import GEMINI_API_KEY, get_secret
 
 class AiVisionService:
     def __init__(self, api_key: str = GEMINI_API_KEY):
         self.api_key = api_key
         self.client = None
+        self.init_error = None
         self._init_client()
 
     def _init_client(self):
@@ -17,7 +18,9 @@ class AiVisionService:
             try:
                 from google import genai
                 self.client = genai.Client(api_key=self.api_key)
+                self.init_error = None
             except Exception as e:
+                self.init_error = str(e)
                 print(f"⚠️ Gemini Client 초기화 실패: {e}")
                 self.client = None
 
@@ -45,15 +48,33 @@ class AiVisionService:
             }
 
         if not self.client:
-            current_k = os.getenv("GEMINI_API_KEY", self.api_key)
+            # 1. Streamlit 세션 상태(사이드바 입력값) 우선 확인
+            try:
+                import streamlit as st
+                sess_k = st.session_state.get("user_gemini_key")
+                if sess_k:
+                    self.api_key = sess_k
+                    self._init_client()
+            except Exception:
+                pass
+
+        if not self.client:
+            # 2. get_secret (환경변수 또는 secrets.toml) 확인
+            current_k = get_secret("GEMINI_API_KEY", self.api_key)
             if current_k:
                 self.api_key = current_k
                 self._init_client()
 
         if not self.client:
+            err_detail = getattr(self, "init_error", None)
+            err_msg = (
+                f"Gemini 엔진 연결 실패 ({err_detail})"
+                if err_detail
+                else "Gemini API 키가 설정되지 않았습니다. 좌측 사이드바 [🔑 AI 비전 엔진(Gemini) 설정]에서 키를 입력하거나, .env 또는 Secrets를 확인해 주세요."
+            )
             return {
                 "success": False,
-                "error": "Gemini API 키가 설정되지 않았습니다. Streamlit Secrets 또는 .env를 확인해 주세요.",
+                "error": err_msg,
                 "data": None
             }
 

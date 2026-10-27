@@ -9,21 +9,35 @@ WORKSPACE_DIR = BASE_DIR.parent
 # .env 로드
 load_dotenv(BASE_DIR / ".env")
 
-# Streamlit Cloud secrets 호환 연동
-try:
-    import streamlit as st
-    if hasattr(st, "secrets"):
-        for k, v in st.secrets.items():
-            if not os.getenv(k):
-                os.environ[k] = str(v)
-except Exception:
-    pass
+def get_secret(key: str, default: str = "") -> str:
+    # 1. 시스템 환경변수 확인
+    val = os.getenv(key)
+    if val:
+        return val
+    # 2. Streamlit Cloud Secrets 및 secrets.toml 확인
+    try:
+        import streamlit as st
+        if hasattr(st, "secrets") and st.secrets is not None:
+            if key in st.secrets:
+                return str(st.secrets[key])
+            if key.lower() in st.secrets:
+                return str(st.secrets[key.lower()])
+            # 중첩 섹션 ([general], [secrets] 등) 탐색
+            for v in st.secrets.values():
+                if isinstance(v, dict):
+                    if key in v:
+                        return str(v[key])
+                    if key.lower() in v:
+                        return str(v[key.lower()])
+    except Exception:
+        pass
+    return default
 
 # API Keys
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-FOOD_SAFETY_API_KEY = os.getenv("FOOD_SAFETY_API_KEY", "")
-FOOD_SAFETY_SERVICE_ID = os.getenv("FOOD_SAFETY_SERVICE_ID", "I2715")
-SAFETYKOREA_API_KEY = os.getenv("SAFETYKOREA_API_KEY", "")
+GEMINI_API_KEY = get_secret("GEMINI_API_KEY", "")
+FOOD_SAFETY_API_KEY = get_secret("FOOD_SAFETY_API_KEY", "")
+FOOD_SAFETY_SERVICE_ID = get_secret("FOOD_SAFETY_SERVICE_ID", "I2715")
+SAFETYKOREA_API_KEY = get_secret("SAFETYKOREA_API_KEY", "")
 
 # 서버 설정
 HOST = os.getenv("HOST", "0.0.0.0")

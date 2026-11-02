@@ -164,10 +164,24 @@ section[data-testid="stSidebar"] { background: #FFFFFF; border-right: 1px solid 
 .call-card b { display: block; font-size: 0.92rem; color: #374151; }
 .call-card span { font-size: 1.15rem; font-weight: 800; color: #1B64DA; }
 
-/* 관리자 머리말 */
+/* 관리자 머리말 (작게) */
 .admin-header {
-    background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%); color: white; padding: 24px; border-radius: 16px;
-    margin-bottom: 22px; border-left: 6px solid #3B82F6; box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+    background: #FFFFFF; border: 1px solid #E3E9F2; border-left: 6px solid #1B64DA; border-radius: 14px;
+    padding: 12px 18px; margin-bottom: 14px;
+}
+.admin-header h1 { color: #111827 !important; font-size: 1.25rem !important; font-weight: 800; margin: 0 0 2px 0; padding: 0; }
+.admin-header p { color: #6B7280; margin: 0; font-size: 0.9rem; }
+
+/* 관리자 로그인 상자 */
+.login-card { background: #FFFFFF; border: 2px solid #BFD4FA; border-radius: 16px; padding: 16px 18px 6px 18px; margin: 8px 0 10px 0; text-align: center; }
+.login-card .lock { font-size: 1.8rem; line-height: 1; }
+.login-card h3 { font-size: 1.15rem; font-weight: 800; margin: 6px 0 2px 0; padding: 0; color: #111827; }
+.login-card p { color: #6B7280; font-size: 0.88rem; margin: 0 0 8px 0; }
+
+/* 맨 위 관리자 버튼 */
+.st-key-top_btn_admin_login button, .st-key-top_btn_admin_console button {
+    background: #FFFFFF !important; border: 1.5px solid #1B64DA !important; color: #1B64DA !important;
+    min-height: 36px !important; font-size: 0.9rem !important;
 }
 
 /* 휴대폰 화면 */
@@ -262,7 +276,7 @@ def render_user_service():
     # 첫 화면 안내판 (작게 — 사진 올리기가 바로 보이도록)
     show_html("""
     <div class="hero">
-        <h1>🛡️ 해외직구, 사기 전에 사진 한 장으로 안심 체크!</h1>
+        <h1>🛡️ 해외물품, 사기 전에 사진 한 장으로 안심 체크!</h1>
         <p>사진만 올리면 <b>우리나라에 들여와도 되는지</b>, <b>써도 안전한지</b> 정부 자료로 바로 알려드려요.</p>
         <div class="hero-chips">
             <span class="hero-chip">💊 약·영양제</span>
@@ -798,79 +812,41 @@ def render_user_service():
 # 2. 관리자 콘솔 (세관·운영자 전용)
 # =============================================================
 def render_admin_service():
-    # 관리자 헤더
-    st.markdown("""
+    # 관리자 머리말 (작게)
+    show_html("""
     <div class="admin-header">
-        <h1 style="color: white; margin: 0 0 6px 0; font-size: 1.85rem;">⚙️ 관세청 세관·검사관 관리자 콘솔</h1>
-        <p style="color: #94a3b8; margin: 0; font-size: 0.95rem;">
-            범정부 안전 API 연동 관리 · 식약처 차단 DB 전수 동기화 · 실시간 시스템 모니터링 및 사용 현황
-        </p>
+        <h1>⚙️ 관리자 화면</h1>
+        <p>정부 자료 연결 상태 확인 · 차단 목록 업데이트 · 이용 현황 보기</p>
     </div>
-    """, unsafe_allow_html=True)
+    """)
 
-    # 보안 인증 체크
+    # 로그인 전: 작은 로그인 상자만 보여줌
     if not st.session_state["admin_authenticated"]:
-        with st.container():
-            st.markdown("""
-            <div style="background: rgba(30, 41, 59, 0.7); border: 2px solid #3b82f6; border-radius: 12px; padding: 22px; margin-bottom: 20px;">
-                <h3 style="margin: 0 0 8px 0; color: #f8fafc; font-size: 1.25rem;">
-                    🔒 관세청 세관·검사관 관리자 인증
-                </h3>
-                <p style="color: #94a3b8; font-size: 0.88rem; margin: 0 0 16px 0;">
-                    관리자 전용 제어센터입니다. 접근을 위해 관리자 보안 비밀번호를 입력해 주세요.
-                </p>
+        _l, mid, _r = st.columns([1, 1.3, 1])
+        with mid:
+            show_html("""
+            <div class="login-card">
+                <div class="lock">🔒</div>
+                <h3>관리자 로그인</h3>
+                <p>관리자만 들어갈 수 있어요. 비밀번호를 입력해 주세요.</p>
             </div>
-            """, unsafe_allow_html=True)
-            
-            c_input, c_btn = st.columns([3, 1])
-            with c_input:
-                admin_pwd = st.text_input("관리자 비밀번호", type="password", key="admin_pwd_input", placeholder="관리자 비밀번호를 입력하세요")
-            with c_btn:
-                st.write("")
-                st.write("")
-                login_clicked = st.button("🚀 로그인", type="primary", use_container_width=True)
+            """)
+            with st.form("admin_login_form", border=False):
+                admin_pwd = st.text_input("비밀번호", type="password", key="admin_pwd_input",
+                                          placeholder="비밀번호 입력", label_visibility="collapsed")
+                login_clicked = st.form_submit_button("로그인", type="primary", use_container_width=True)
 
             if login_clicked:
                 if admin_pwd == "customs2026" or admin_pwd == "admin1234":
                     st.session_state["admin_authenticated"] = True
-                    st.success("관리자 인증 성공!")
-                    time.sleep(0.4)
                     st.rerun()
                 else:
-                    st.error("비밀번호가 올바르지 않습니다.")
+                    st.error("비밀번호가 맞지 않아요. 다시 입력해 주세요.")
 
-            st.markdown("---")
-
-            # 🔑 Gemini AI 비전 엔진 설정을 관리자 로그인 화면 안에 배치
-            st.markdown("#### 🔑 AI 비전 엔진 (Gemini) API 설정")
-            st.caption("AI 사진 라벨 분석 및 위해성분 판독에 사용되는 Google Gemini API Key를 여기서 등록하거나 변경할 수 있습니다.")
-            
-            if ai_vision_service.client:
-                st.success("✅ 현재 Gemini AI 비전 엔진 연결 정상 가동 중")
-            else:
-                st.warning("⚠️ Gemini API 키 입력이 필요합니다.")
-            
-            admin_gemini_key = st.text_input(
-                "Gemini API Key 입력 / 변경",
-                value=st.session_state.get("user_gemini_key", ai_vision_service.api_key or ""),
-                type="password",
-                help="Google AI Studio(aistudio.google.com)에서 발급받은 API 키를 입력하세요.",
-                key="gemini_key_admin_screen"
-            )
-            if admin_gemini_key:
-                st.session_state["user_gemini_key"] = admin_gemini_key
-                if admin_gemini_key != ai_vision_service.api_key or not ai_vision_service.client:
-                    ai_vision_service.api_key = admin_gemini_key
-                    ai_vision_service._init_client()
-                    if ai_vision_service.client:
-                        st.success("✅ 새 API 키로 정상 연결되었습니다!")
-
-            st.markdown("---")
-            if st.button("⬅️ 일반 사용자(대국민) 화면으로 돌아가기", use_container_width=True):
+            if st.button("← 첫 화면으로 돌아가기", use_container_width=True, key="admin_back_home"):
                 st.session_state["admin_view"] = False
                 st.rerun()
-
-            return
+        return
 
     # 관리자 사이드바
     with st.sidebar:

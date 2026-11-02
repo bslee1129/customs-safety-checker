@@ -342,13 +342,15 @@ st.markdown("""
 # -------------------------------------------------------------
 if "admin_authenticated" not in st.session_state:
     st.session_state["admin_authenticated"] = False
+if "admin_view" not in st.session_state:
+    st.session_state["admin_view"] = False
 if "camera_photos" not in st.session_state:
     st.session_state["camera_photos"] = []
 if "inspection_history" not in st.session_state:
     st.session_state["inspection_history"] = []
 
 # -------------------------------------------------------------
-# 최상단 헤더: 공공 전자정부 안내 & 우측 상단 모드 전환 (작게 표기)
+# 최상단 헤더: 공공 전자정부 안내 & 우측 상단 관리자 로그인 (단순/심플)
 # -------------------------------------------------------------
 top_col1, top_col2 = st.columns([3.8, 1.2])
 
@@ -362,44 +364,31 @@ with top_col1:
     """, unsafe_allow_html=True)
 
 with top_col2:
-    st.markdown("""
-    <div class="top-mode-box">
-        <span class="top-mode-label">🌐 모드 전환</span>
-    </div>
-    """, unsafe_allow_html=True)
-    mode_selection = st.selectbox(
-        "모드 선택",
-        ["일반사용자 (대국민 안심 서비스)", "관리자 콘솔 (세관·운영자)"],
-        index=0,
-        label_visibility="collapsed",
-        key="top_right_mode_selector"
-    )
-    is_admin_mode = (mode_selection == "관리자 콘솔 (세관·운영자)")
-
-# 사이드바: 모드 선택을 화면 우측 상단으로 이전하고, 사이드바는 유용한 설정 및 직구 안내로 정돈
-with st.sidebar:
-    with st.expander("🔑 AI 비전 엔진(Gemini) 설정", expanded=not bool(ai_vision_service.client)):
-        if ai_vision_service.client:
-            st.success("✅ Gemini AI 비전 엔진 연결 정상")
+    st.markdown('<div style="text-align: right; padding-top: 2px;">', unsafe_allow_html=True)
+    if st.session_state["admin_view"]:
+        btn_c1, btn_c2 = st.columns([1, 1])
+        with btn_c1:
+            if st.button("👥 사용자 화면", key="top_btn_user_mode", use_container_width=True):
+                st.session_state["admin_view"] = False
+                st.rerun()
+        with btn_c2:
+            if st.session_state.get("admin_authenticated", False):
+                if st.button("🚪 로그아웃", key="top_btn_logout_mode", use_container_width=True):
+                    st.session_state["admin_authenticated"] = False
+                    st.session_state["admin_view"] = False
+                    st.rerun()
+    else:
+        if st.session_state.get("admin_authenticated", False):
+            if st.button("⚙️ 관리자 콘솔", key="top_btn_admin_console", use_container_width=True):
+                st.session_state["admin_view"] = True
+                st.rerun()
         else:
-            st.warning("⚠️ Gemini API 키 입력이 필요합니다.")
-        
-        custom_key = st.text_input(
-            "Gemini API Key 입력",
-            value=st.session_state.get("user_gemini_key", ai_vision_service.api_key or ""),
-            type="password",
-            help="Google AI Studio(aistudio.google.com)에서 발급받은 API 키를 입력하세요.",
-            key="gemini_key_sidebar"
-        )
-        if custom_key:
-            st.session_state["user_gemini_key"] = custom_key
-            if custom_key != ai_vision_service.api_key or not ai_vision_service.client:
-                ai_vision_service.api_key = custom_key
-                ai_vision_service._init_client()
-                if ai_vision_service.client:
-                    st.success("✅ 새 API 키로 정상 연결되었습니다!")
+            if st.button("🔒 관리자 로그인", key="top_btn_admin_login", use_container_width=True):
+                st.session_state["admin_view"] = True
+                st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown("---")
+is_admin_mode = st.session_state["admin_view"]
 
 # =============================================================
 # 1. 일반사용자(대국민) 조회 서비스
@@ -996,28 +985,103 @@ def render_admin_service():
     # 보안 인증 체크
     if not st.session_state["admin_authenticated"]:
         with st.container():
-            st.warning("🔒 관리자 전용 제어센터입니다. 접근을 위해 관리자 비밀번호를 입력해 주세요.")
-            admin_pwd = st.text_input("관리자 비밀번호", type="password", key="admin_pwd_input", placeholder="비밀번호를 입력하세요")
+            st.markdown("""
+            <div style="background: rgba(30, 41, 59, 0.7); border: 2px solid #3b82f6; border-radius: 12px; padding: 22px; margin-bottom: 20px;">
+                <h3 style="margin: 0 0 8px 0; color: #f8fafc; font-size: 1.25rem;">
+                    🔒 관세청 세관·검사관 관리자 인증
+                </h3>
+                <p style="color: #94a3b8; font-size: 0.88rem; margin: 0 0 16px 0;">
+                    관리자 전용 제어센터입니다. 접근을 위해 관리자 보안 비밀번호를 입력해 주세요.
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
             
-            c1, c2 = st.columns([1, 4])
-            with c1:
-                if st.button("로그인", type="primary", use_container_width=True):
-                    if admin_pwd == "customs2026" or admin_pwd == "admin1234":
-                        st.session_state["admin_authenticated"] = True
-                        st.success("관리자 인증 성공!")
-                        time.sleep(0.5)
-                        st.rerun()
-                    else:
-                        st.error("비밀번호가 올바르지 않습니다.")
+            c_input, c_btn = st.columns([3, 1])
+            with c_input:
+                admin_pwd = st.text_input("관리자 비밀번호", type="password", key="admin_pwd_input", placeholder="관리자 비밀번호를 입력하세요")
+            with c_btn:
+                st.write("")
+                st.write("")
+                login_clicked = st.button("🚀 로그인", type="primary", use_container_width=True)
+
+            if login_clicked:
+                if admin_pwd == "customs2026" or admin_pwd == "admin1234":
+                    st.session_state["admin_authenticated"] = True
+                    st.success("관리자 인증 성공!")
+                    time.sleep(0.4)
+                    st.rerun()
+                else:
+                    st.error("비밀번호가 올바르지 않습니다.")
+
+            st.markdown("---")
+
+            # 🔑 Gemini AI 비전 엔진 설정을 관리자 로그인 화면 안에 배치
+            st.markdown("#### 🔑 AI 비전 엔진 (Gemini) API 설정")
+            st.caption("AI 사진 라벨 분석 및 위해성분 판독에 사용되는 Google Gemini API Key를 여기서 등록하거나 변경할 수 있습니다.")
+            
+            if ai_vision_service.client:
+                st.success("✅ 현재 Gemini AI 비전 엔진 연결 정상 가동 중")
+            else:
+                st.warning("⚠️ Gemini API 키 입력이 필요합니다.")
+            
+            admin_gemini_key = st.text_input(
+                "Gemini API Key 입력 / 변경",
+                value=st.session_state.get("user_gemini_key", ai_vision_service.api_key or ""),
+                type="password",
+                help="Google AI Studio(aistudio.google.com)에서 발급받은 API 키를 입력하세요.",
+                key="gemini_key_admin_screen"
+            )
+            if admin_gemini_key:
+                st.session_state["user_gemini_key"] = admin_gemini_key
+                if admin_gemini_key != ai_vision_service.api_key or not ai_vision_service.client:
+                    ai_vision_service.api_key = admin_gemini_key
+                    ai_vision_service._init_client()
+                    if ai_vision_service.client:
+                        st.success("✅ 새 API 키로 정상 연결되었습니다!")
+
+            st.markdown("---")
+            if st.button("⬅️ 일반 사용자(대국민) 화면으로 돌아가기", use_container_width=True):
+                st.session_state["admin_view"] = False
+                st.rerun()
+
             return
 
     # 관리자 사이드바
     with st.sidebar:
         st.subheader("🛡️ 관리자 보안 세션")
         st.success("인증 상태: **운영자 / 세관 관리자**")
-        if st.button("🚪 관리자 로그아웃", use_container_width=True):
-            st.session_state["admin_authenticated"] = False
-            st.rerun()
+        
+        c_side1, c_side2 = st.columns(2)
+        with c_side1:
+            if st.button("👥 사용자 화면", use_container_width=True, key="admin_sidebar_to_user"):
+                st.session_state["admin_view"] = False
+                st.rerun()
+        with c_side2:
+            if st.button("🚪 로그아웃", use_container_width=True, key="admin_sidebar_logout"):
+                st.session_state["admin_authenticated"] = False
+                st.session_state["admin_view"] = False
+                st.rerun()
+
+        st.markdown("---")
+        with st.expander("🔑 AI 비전 엔진(Gemini) 설정", expanded=False):
+            if ai_vision_service.client:
+                st.success("✅ Gemini 연결 정상")
+            else:
+                st.warning("⚠️ Gemini API 키 필요")
+            
+            custom_key = st.text_input(
+                "Gemini Key",
+                value=st.session_state.get("user_gemini_key", ai_vision_service.api_key or ""),
+                type="password",
+                key="gemini_key_admin_sidebar"
+            )
+            if custom_key:
+                st.session_state["user_gemini_key"] = custom_key
+                if custom_key != ai_vision_service.api_key or not ai_vision_service.client:
+                    ai_vision_service.api_key = custom_key
+                    ai_vision_service._init_client()
+                    if ai_vision_service.client:
+                        st.success("✅ 새 API 키 연결 완료!")
 
         st.markdown("---")
         st.subheader("📊 통합 DB 핵심 요약")

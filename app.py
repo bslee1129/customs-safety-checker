@@ -25,9 +25,16 @@ from services.safetykorea_api import safetykorea_api
 from services.ai_vision_service import ai_vision_service
 from services.rra_api import rra_api
 
-# 커스텀 CSS 스타일링
+# 공공 포털 표준 커스텀 CSS 스타일링
 st.markdown("""
 <style>
+    /* Google Fonts & Base Typography */
+    @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;700;800&display=swap');
+    
+    html, body, [class*="css"] {
+        font-family: 'Pretendard', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
     /* 이미지 크기 자동 최적화 (세로 사진 과대 표시 방지) */
     div[data-testid="stImage"] {
         text-align: center;
@@ -43,37 +50,71 @@ st.markdown("""
         margin: 0 auto !important;
     }
 
-    /* 모바일 반응형 베이스 */
-    @media (max-width: 768px) {
-        div[data-testid="stImage"] img {
-            max-height: 280px !important;
-        }
-        .user-header, .admin-header {
-            padding: 16px 14px !important;
-            margin-bottom: 14px !important;
-            border-radius: 10px !important;
-        }
-        .user-header h1, .admin-header h1 {
-            font-size: 1.4rem !important;
-            line-height: 1.3 !important;
-        }
-        .user-header p, .admin-header p {
-            font-size: 0.85rem !important;
-        }
-        .stButton button {
-            min-height: 48px !important;
-            font-size: 1rem !important;
-            font-weight: bold !important;
-        }
+    /* 최상단 전자정부 공공 배너 */
+    .gov-top-strip {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 4px 6px;
+        border-bottom: 1px solid rgba(226, 232, 240, 0.15);
+        margin-bottom: 8px;
     }
-    
-    .user-header {
-        background: linear-gradient(135deg, #0d3b66 0%, #1e3a8a 100%);
+    .gov-flag-icon {
+        font-size: 0.92rem;
+        display: inline-flex;
+        align-items: center;
+        font-weight: 700;
+        color: #60a5fa;
+        letter-spacing: -0.3px;
+    }
+    .gov-top-divider {
+        color: rgba(148, 163, 184, 0.4);
+        font-size: 0.8rem;
+    }
+    .gov-dept-names {
+        font-size: 0.78rem;
+        color: #94a3b8;
+        font-weight: 500;
+    }
+
+    /* 우측 상단 모드 전환 래퍼 */
+    .top-mode-box {
+        text-align: right;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        justify-content: center;
+    }
+    .top-mode-label {
+        font-size: 0.72rem;
+        color: #94a3b8;
+        font-weight: 600;
+        margin-bottom: 2px;
+        letter-spacing: -0.2px;
+    }
+
+    /* 공공 표준 메인 헤더 배너 */
+    .user-header-gov {
+        background: linear-gradient(135deg, #091e3a 0%, #0d3b66 50%, #1e3a8a 100%);
         color: white;
-        padding: 24px;
+        padding: 24px 28px;
         border-radius: 14px;
-        margin-bottom: 22px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.12);
+        margin-bottom: 20px;
+        box-shadow: 0 4px 20px rgba(13, 59, 102, 0.25);
+        border: 1px solid rgba(59, 130, 246, 0.25);
+        position: relative;
+        overflow: hidden;
+    }
+    .user-header-gov::after {
+        content: "";
+        position: absolute;
+        top: -40px;
+        right: -40px;
+        width: 180px;
+        height: 180px;
+        background: radial-gradient(circle, rgba(56, 189, 248, 0.15) 0%, transparent 70%);
+        border-radius: 50%;
+        pointer-events: none;
     }
     .admin-header {
         background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
@@ -84,6 +125,148 @@ st.markdown("""
         border-left: 6px solid #3b82f6;
         box-shadow: 0 4px 15px rgba(0,0,0,0.2);
     }
+
+    /* '이것으로 어떤 게 가능한가?' 비주얼 쇼케이스 카드 그리드 */
+    .gov-feature-showcase {
+        margin-bottom: 24px;
+    }
+    .showcase-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+    .showcase-tag {
+        background: #1e3a8a;
+        color: #93c5fd;
+        font-size: 0.72rem;
+        font-weight: 700;
+        padding: 3px 8px;
+        border-radius: 6px;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        border: 1px solid rgba(147, 197, 253, 0.3);
+    }
+    .showcase-title {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #f1f5f9;
+        margin: 0;
+    }
+    .feature-card-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+    }
+    .feature-card {
+        background: rgba(30, 41, 59, 0.55);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 12px;
+        padding: 16px;
+        position: relative;
+        transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+    }
+    .feature-card:hover {
+        border-color: rgba(56, 189, 248, 0.5);
+        box-shadow: 0 4px 12px rgba(14, 165, 233, 0.15);
+    }
+    .feature-card-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+    .feature-icon-circle {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.15rem;
+    }
+    .feature-icon-circle.blue {
+        background: rgba(59, 130, 246, 0.15);
+        border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+    .feature-icon-circle.amber {
+        background: rgba(245, 158, 11, 0.15);
+        border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+    .feature-icon-circle.emerald {
+        background: rgba(16, 185, 129, 0.15);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .feature-step-num {
+        font-size: 0.78rem;
+        font-weight: 800;
+        color: #64748b;
+    }
+    .feature-card-badge {
+        display: inline-block;
+        font-size: 0.72rem;
+        font-weight: 700;
+        padding: 2px 7px;
+        border-radius: 4px;
+        margin-bottom: 6px;
+    }
+    .feature-card-badge.blue {
+        background: rgba(59, 130, 246, 0.2);
+        color: #60a5fa;
+    }
+    .feature-card-badge.amber {
+        background: rgba(245, 158, 11, 0.2);
+        color: #fbbf24;
+    }
+    .feature-card-badge.emerald {
+        background: rgba(16, 185, 129, 0.2);
+        color: #34d399;
+    }
+    .feature-card h4 {
+        margin: 0 0 6px 0;
+        font-size: 0.96rem;
+        font-weight: 700;
+        color: #f8fafc;
+    }
+    .feature-card p {
+        margin: 0;
+        font-size: 0.82rem;
+        line-height: 1.5;
+        color: #94a3b8;
+    }
+
+    /* 메인 AI 사진 안심검사 강조 컨테이너 */
+    .main-hero-inspection {
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.75) 100%);
+        border: 2px solid #3b82f6;
+        border-radius: 14px;
+        padding: 22px;
+        margin-bottom: 26px;
+        box-shadow: 0 6px 24px rgba(37, 99, 235, 0.18);
+        position: relative;
+    }
+    .main-hero-badge {
+        position: absolute;
+        top: -12px;
+        left: 20px;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: white;
+        font-size: 0.75rem;
+        font-weight: 800;
+        padding: 3px 12px;
+        border-radius: 9999px;
+        letter-spacing: 0.3px;
+        box-shadow: 0 2px 8px rgba(37, 99, 235, 0.5);
+    }
+    .hero-title-wrap {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 14px;
+        padding-top: 4px;
+    }
+
+    /* 뱃지 스타일 */
     .badge-danger {
         background-color: #dc3545;
         color: white;
@@ -123,6 +306,34 @@ st.markdown("""
         padding: 16px;
         text-align: center;
     }
+
+    /* 모바일 반응형 베이스 */
+    @media (max-width: 768px) {
+        .feature-card-grid {
+            grid-template-columns: 1fr;
+            gap: 10px;
+        }
+        div[data-testid="stImage"] img {
+            max-height: 280px !important;
+        }
+        .user-header-gov, .admin-header {
+            padding: 16px 14px !important;
+            margin-bottom: 14px !important;
+            border-radius: 10px !important;
+        }
+        .user-header-gov h1, .admin-header h1 {
+            font-size: 1.35rem !important;
+            line-height: 1.3 !important;
+        }
+        .user-header-gov p, .admin-header p {
+            font-size: 0.83rem !important;
+        }
+        .stButton button {
+            min-height: 48px !important;
+            font-size: 1rem !important;
+            font-weight: bold !important;
+        }
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -137,18 +348,36 @@ if "inspection_history" not in st.session_state:
     st.session_state["inspection_history"] = []
 
 # -------------------------------------------------------------
-# 사이드바: 모드 선택 (대국민 서비스 vs 관리자 콘솔)
+# 최상단 헤더: 공공 전자정부 안내 & 우측 상단 모드 전환 (작게 표기)
 # -------------------------------------------------------------
-with st.sidebar:
-    st.markdown("### 🌐 모드 전환")
-    mode = st.radio(
-        "사용 목적을 선택하세요",
+top_col1, top_col2 = st.columns([3.8, 1.2])
+
+with top_col1:
+    st.markdown("""
+    <div class="gov-top-strip">
+        <span class="gov-flag-icon">🇰🇷 대한민국 전자정부</span>
+        <span class="gov-top-divider">|</span>
+        <span class="gov-dept-names">관세청 · 식품의약품안전처 · 국가기술표준원 · 국립전파연구원 합동 공공 서비스</span>
+    </div>
+    """, unsafe_allow_html=True)
+
+with top_col2:
+    st.markdown("""
+    <div class="top-mode-box">
+        <span class="top-mode-label">🌐 모드 전환</span>
+    </div>
+    """, unsafe_allow_html=True)
+    mode_selection = st.selectbox(
+        "모드 선택",
         ["일반사용자 (대국민 안심 서비스)", "관리자 콘솔 (세관·운영자)"],
         index=0,
-        label_visibility="collapsed"
+        label_visibility="collapsed",
+        key="top_right_mode_selector"
     )
-    is_admin_mode = (mode == "관리자 콘솔 (세관·운영자)")
-    
+    is_admin_mode = (mode_selection == "관리자 콘솔 (세관·운영자)")
+
+# 사이드바: 모드 선택을 화면 우측 상단으로 이전하고, 사이드바는 유용한 설정 및 직구 안내로 정돈
+with st.sidebar:
     with st.expander("🔑 AI 비전 엔진(Gemini) 설정", expanded=not bool(ai_vision_service.client)):
         if ai_vision_service.client:
             st.success("✅ Gemini AI 비전 엔진 연결 정상")
@@ -193,27 +422,98 @@ def render_user_service():
         st.write("- **관세청 밀수신고**: 국번없이 125")
         st.caption("관세청 × 식약처 × 국표원 × 국립전파연구원 합동")
 
-    # 대국민용 메인 헤더
+    # 공공 표준 대국민용 메인 헤더
     st.markdown("""
-    <div class="user-header">
-        <h1 style="color: white; margin: 0 0 8px 0; font-size: 1.85rem;">🛡️ 해외직구 안전지킴이 - 대국민 안심 조회 포털</h1>
-        <p style="color: #cbd5e1; margin: 0; font-size: 0.95rem;">
-            식약처 직구차단식품 + 국가기술표준원 KC안전인증 + 국립전파연구원 전자파인증을 한눈에 실시간 확인하세요!
+    <div class="user-header-gov">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+            <span style="background: rgba(56, 189, 248, 0.2); color: #38bdf8; font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 9999px; border: 1px solid rgba(56, 189, 248, 0.4);">
+                K-CUSTOMS & GOV DIGITAL SERVICE
+            </span>
+            <span style="font-size: 0.8rem; color: #94a3b8;">관세청 × 식약처 × 국표원 × 국립전파연구원 합동</span>
+        </div>
+        <h1 style="color: white; margin: 0 0 10px 0; font-size: 1.85rem; font-weight: 800; letter-spacing: -0.5px;">
+            🛡️ 해외직구 안전지킴이 - 대국민 안심 통관·안전 진단 포털
+        </h1>
+        <p style="color: #cbd5e1; margin: 0; font-size: 0.95rem; line-height: 1.6;">
+            해외직구 결제 전, <strong>제품 사진 한 장</strong>으로 식품위해물품·불법의약품 차단 여부와 
+            국가기술표준원 KC안전인증 및 국립전파연구원 전자파 적합성을 실시간 1:1 교차 검증하세요.
         </p>
     </div>
     """, unsafe_allow_html=True)
 
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "📸 AI 사진 안심 검사",
-        "🏛️ 범정부 안전인증 DB (KC·전자파·리콜)",
-        "🔍 위해식품 차단 목록 검색",
-        "⌨️ 제품명·성분 직접 입력 조회"
-    ])
+    # 💡 "이것으로 어떤 게 가능한가?" 가시적 비주얼 쇼케이스 (3대 핵심 혜택)
+    st.markdown("""
+    <div class="gov-feature-showcase">
+        <div class="showcase-header">
+            <span class="showcase-tag">SERVICE GUIDE</span>
+            <h3 class="showcase-title">💡 안전지킴이로 사전에 예방하고 확인할 수 있는 3대 핵심 안심 기능</h3>
+        </div>
+        <div class="feature-card-grid">
+            <!-- 1. AI 라벨 자동 판독 -->
+            <div class="feature-card">
+                <div class="feature-card-top">
+                    <div class="feature-icon-circle blue">
+                        <i class="fa-solid fa-camera" style="color: #38bdf8;"></i>
+                    </div>
+                    <span class="feature-step-num">STEP 01</span>
+                </div>
+                <span class="feature-card-badge blue">원클릭 AI 자동인식</span>
+                <h4>영문 성분·모델명 몰라도 OK</h4>
+                <p>영문 라벨, 복잡한 화학성분표(Supplement Facts), 바코드를 직접 타이핑할 필요 없이 사진 1장으로 AI가 위험 요소를 즉시 자동 추출합니다.</p>
+            </div>
 
-    # 탭 1: AI 사진 안심 검사
-    with tab1:
-        st.markdown("### 📷 제품 사진 AI 안심 검사")
-        st.write("의심 제품의 **전면(제품명), 후면(원재료/성분표), 측면(바코드, KC/전파인증마크)** 사진을 1장 또는 여러 장 등록하세요.")
+            <!-- 2. 폐기 비용 및 통관 보류 방지 -->
+            <div class="feature-card">
+                <div class="feature-card-top">
+                    <div class="feature-icon-circle amber">
+                        <i class="fa-solid fa-ban" style="color: #fbbf24;"></i>
+                    </div>
+                    <span class="feature-step-num">STEP 02</span>
+                </div>
+                <span class="feature-card-badge amber">폐기비용·통관보류 방지</span>
+                <h4>통관 폐기 수수료 원천 차단</h4>
+                <p>구매 결제 전 유해 의약품(멜라토닌·요힘빈 등) 및 건기식 6병 수량기준 초과 여부를 사전에 파악하여 수만원대 폐기 수수료와 물품 몰수를 예방합니다.</p>
+            </div>
+
+            <!-- 3. 범정부 4대 안전 DB 연동 -->
+            <div class="feature-card">
+                <div class="feature-card-top">
+                    <div class="feature-icon-circle emerald">
+                        <i class="fa-solid fa-shield-halved" style="color: #34d399;"></i>
+                    </div>
+                    <span class="feature-step-num">STEP 03</span>
+                </div>
+                <span class="feature-card-badge emerald">범정부 4대 DB 연계</span>
+                <h4>정부 공인 안전DB 1:1 대조</h4>
+                <p>식약처(위해식품 5,055건) + 국표원(KC인증·유통리콜·해외직구 부적합) + 전파연구원(전자파적합성) 공식 전산망을 실시간 교차 검증합니다.</p>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # =============================================================
+    # [핵심 메인 기능] AI 사진 안심 검사 진단 데스크 (센터 스테이지)
+    # =============================================================
+    st.markdown("""
+    <div style="background: linear-gradient(135deg, rgba(30, 58, 138, 0.3) 0%, rgba(15, 23, 42, 0.7) 100%); border: 2px solid #3b82f6; border-radius: 14px; padding: 18px 20px; margin-bottom: 20px; box-shadow: 0 4px 18px rgba(59, 130, 246, 0.15);">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="background: #2563eb; color: white; font-size: 0.75rem; font-weight: 800; padding: 3px 10px; border-radius: 6px;">핵심 메인 기능</span>
+                <h2 style="margin: 0; color: #f8fafc; font-size: 1.35rem; font-weight: 800;">
+                    📸 AI 사진 원클릭 안심 진단 데스크
+                </h2>
+            </div>
+            <span style="font-size: 0.8rem; color: #60a5fa; font-weight: 600;">
+                <i class="fa-solid fa-bolt"></i> Google Gemini Multimodal Vision AI 탑재
+            </span>
+        </div>
+        <p style="color: #cbd5e1; font-size: 0.88rem; margin: 8px 0 0 0;">
+            의심 제품의 <strong>전면(제품명), 후면(원재료/성분표), 측면(바코드, KC/전파인증마크)</strong> 사진을 등록하시면 AI가 즉시 정부 차단 DB와 1:1 정밀 대조합니다.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    with st.container():
 
         # 1️⃣ 사진 등록 영역 (상단)
         st.subheader("1️⃣ 사진 등록 및 촬영 (다중 선택 가능)")
@@ -582,69 +882,101 @@ def render_user_service():
         else:
             st.info("👆 위에서 검사할 제품의 사진을 촬영하거나 등록한 뒤, **[🚀 AI 안심 진단 시작하기]** 버튼을 눌러주세요.")
 
-    # 탭 2: 범정부 안전인증 DB (국표원 + 전파연구원)
-    with tab2:
-        render_safety_db_section()
+        # -------------------------------------------------------------
+        # =============================================================
+        # 🏛️ 부가 서비스: 범정부 안전 DB 직접 검색 및 통관 규정 안내
+        # =============================================================
+        st.markdown("---")
+        st.markdown("""
+        <div style="background: rgba(30, 41, 59, 0.45); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 12px; padding: 16px 20px; margin-bottom: 16px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="background: rgba(148, 163, 184, 0.2); color: #cbd5e1; font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 4px;">
+                        보조 기능
+                    </span>
+                    <h3 style="margin: 0; color: #f1f5f9; font-size: 1.15rem; font-weight: 700;">
+                        🏛️ 범정부 공공 안전 DB 직접 조회 및 부가 서비스
+                    </h3>
+                </div>
+                <span style="font-size: 0.78rem; color: #94a3b8;">
+                    KC인증 · 전파인증 · 리콜공고 · 위해식품 DB 수동 검색
+                </span>
+            </div>
+            <p style="color: #94a3b8; font-size: 0.83rem; margin: 6px 0 0 0; line-height: 1.5;">
+                AI 사진 촬영 검사 외에, 모델명·인증번호·성분명을 직접 입력하여 식약처·국표원·전파연구원 전산망의 세부 이력을 수동으로 검색하거나 대조할 수 있는 부가 기능입니다.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
 
-    # 탭 3: 위해식품 차단 DB 통합 검색
-    with tab3:
-        st.subheader("🔍 식약처 해외직구 위해식품 차단 목록 검색")
-        st.caption("식품의약품안전처에서 관세청에 통관 보류 및 반입 금지를 요청한 공식 차단 목록입니다.")
-        search_q = st.text_input("검색어 입력 (제품명, 검출 위해성분, 바코드, 제조사)", key="user_food_search_q")
-        
-        if search_q.strip() or st.button("목록 새로고침", key="user_refresh_food"):
-            res = db_service.search(query=search_q, page=1, page_size=20)
-            items = res.get("items", [])
-            total = res.get("total", 0)
+        sub_tab1, sub_tab2, sub_tab3 = st.tabs([
+            "🏷️ 범정부 4대 제품안전·전파인증 DB (국표원 & 전파연)",
+            "🔍 식약처 위해식품 차단 DB 직접 검색",
+            "⌨️ 제품명·성분 직접 입력 수동 대조"
+        ])
 
-            st.write(f"검색 결과: 총 **{total:,}** 건")
-            if items:
-                for item in items:
-                    with st.expander(f"[{item.get('등록번호', '-')}] {item.get('제품명', '이름 없음')} (성분: {item.get('성분명', '-')})"):
-                        c1, c2 = st.columns([1, 2])
-                        with c1:
-                            img_url = item.get("이미지경로")
-                            if img_url:
-                                st.image(img_url, use_container_width=True)
-                            else:
-                                st.caption("등록 이미지 없음")
-                        with c2:
-                            st.write(f"**제조사/국가**: {item.get('제조사', '-')} / {item.get('제조국', '-')}")
-                            st.write(f"**검출 위해성분**: {item.get('성분명', '-')}")
-                            st.write(f"**회수/차단 사유**: {item.get('회수사유', '-')}")
-                            st.write(f"**바코드**: `{item.get('바코드', '-')}`")
-                            st.write(f"**정보 출처**: {item.get('정보출처', '-')}")
-            else:
-                st.info("검색 조건에 일치하는 차단 정보가 없습니다.")
+        # 부가 탭 1: 범정부 안전인증 DB (국표원 + 전파연구원)
+        with sub_tab1:
+            render_safety_db_section()
 
-    # 탭 4: 제품 텍스트 직접 입력 수동 검사
-    with tab4:
-        st.subheader("⌨️ 제품 정보 직접 입력 대조 (식약처 + 국표원)")
-        t_name = st.text_input("제품명", key="user_t_name")
-        t_barcode = st.text_input("바코드 (선택)", key="user_t_bar")
-        t_ing = st.text_area("의심 성분 (쉼표로 구분 입력, 예: yohimbine, sildenafil, melatonin)", key="user_t_ing")
+        # 부가 탭 2: 위해식품 차단 DB 통합 검색
+        with sub_tab2:
+            st.subheader("🔍 식약처 해외직구 위해식품 차단 목록 검색")
+            st.caption("식품의약품안전처에서 관세청에 통관 보류 및 반입 금지를 요청한 공식 차단 목록입니다.")
+            search_q = st.text_input("검색어 입력 (제품명, 검출 위해성분, 바코드, 제조사)", key="user_food_search_q")
+            
+            if search_q.strip() or st.button("목록 새로고침", key="user_refresh_food"):
+                res = db_service.search(query=search_q, page=1, page_size=20)
+                items = res.get("items", [])
+                total = res.get("total", 0)
 
-        if st.button("안심 대조 실행", type="primary", key="user_t_btn"):
-            if not t_name.strip() and not t_ing.strip():
-                st.warning("제품명 또는 성분을 입력해 주세요.")
-            else:
-                ing_list = [x.strip() for x in t_ing.split(",") if x.strip()]
-                ocr_data = {
-                    "product_name": t_name,
-                    "barcode": t_barcode,
-                    "ingredients": ing_list
-                }
-                res = db_service.match_product(ocr_data)
-                safety_res = safetykorea_api.comprehensive_check(product_name=t_name, barcode=t_barcode)
-
-                if res.get("matched") or safety_res.get("has_danger"):
-                    st.error("🚨 [차단 대상] 입력하신 정보가 정부 위해물품 데이터베이스와 일치합니다!")
-                    st.json({
-                        "식약처_매칭결과": res,
-                        "국표원_안전정보": safety_res
-                    })
+                st.write(f"검색 결과: 총 **{total:,}** 건")
+                if items:
+                    for item in items:
+                        with st.expander(f"[{item.get('등록번호', '-')}] {item.get('제품명', '이름 없음')} (성분: {item.get('성분명', '-')})"):
+                            c1, c2 = st.columns([1, 2])
+                            with c1:
+                                img_url = item.get("이미지경로")
+                                if img_url:
+                                    st.image(img_url, use_container_width=True)
+                                else:
+                                    st.caption("등록 이미지 없음")
+                            with c2:
+                                st.write(f"**제조사/국가**: {item.get('제조사', '-')} / {item.get('제조국', '-')}")
+                                st.write(f"**검출 위해성분**: {item.get('성분명', '-')}")
+                                st.write(f"**회수/차단 사유**: {item.get('회수사유', '-')}")
+                                st.write(f"**바코드**: `{item.get('바코드', '-')}`")
+                                st.write(f"**정보 출처**: {item.get('정보출처', '-')}")
                 else:
-                    st.success("✅ [정상] 정부 공인 위해식품 및 리콜 데이터베이스에 일치하는 내역이 없습니다.")
+                    st.info("검색 조건에 일치하는 차단 정보가 없습니다.")
+
+        # 부가 탭 3: 제품 텍스트 직접 입력 수동 검사
+        with sub_tab3:
+            st.subheader("⌨️ 제품 정보 직접 입력 대조 (식약처 + 국표원)")
+            t_name = st.text_input("제품명", key="user_t_name")
+            t_barcode = st.text_input("바코드 (선택)", key="user_t_bar")
+            t_ing = st.text_area("의심 성분 (쉼표로 구분 입력, 예: yohimbine, sildenafil, melatonin)", key="user_t_ing")
+
+            if st.button("안심 대조 실행", type="primary", key="user_t_btn"):
+                if not t_name.strip() and not t_ing.strip():
+                    st.warning("제품명 또는 성분을 입력해 주세요.")
+                else:
+                    ing_list = [x.strip() for x in t_ing.split(",") if x.strip()]
+                    ocr_data = {
+                        "product_name": t_name,
+                        "barcode": t_barcode,
+                        "ingredients": ing_list
+                    }
+                    res = db_service.match_product(ocr_data)
+                    safety_res = safetykorea_api.comprehensive_check(product_name=t_name, barcode=t_barcode)
+
+                    if res.get("matched") or safety_res.get("has_danger"):
+                        st.error("🚨 [차단 대상] 입력하신 정보가 정부 위해물품 데이터베이스와 일치합니다!")
+                        st.json({
+                            "식약처_매칭결과": res,
+                            "국표원_안전정보": safety_res
+                        })
+                    else:
+                        st.success("✅ [정상] 정부 공인 위해식품 및 리콜 데이터베이스에 일치하는 내역이 없습니다.")
 
 
 # =============================================================

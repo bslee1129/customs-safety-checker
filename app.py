@@ -8,7 +8,7 @@ import streamlit as st
 
 # 페이지 기본 설정
 st.set_page_config(
-    page_title="해외직구 안심체크 | 사기 전에 사진 한 장으로 확인",
+    page_title="사진 한 장 안심체크 | 사기 전에, 쓰기 전에",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -276,8 +276,8 @@ def render_user_service():
     # 첫 화면 안내판 (작게 — 사진 올리기가 바로 보이도록)
     show_html("""
     <div class="hero">
-        <h1>🛡️ 해외물품, 사기 전에 사진 한 장으로 안심 체크!</h1>
-        <p>사진만 올리면 <b>우리나라에 들여와도 되는지</b>, <b>써도 안전한지</b> 정부 자료로 바로 알려드려요.</p>
+        <h1>🛡️ 사기 전에, 쓰기 전에 사진 한 장으로 안심 체크!</h1>
+        <p>해외직구 약·영양제부터 우리 집 장난감·생활용품·전기용품까지. 사진만 올리면 <b>들여와도 되는지</b>, <b>리콜 대상은 아닌지</b> 정부 자료로 바로 알려드려요.</p>
         <div class="hero-chips">
             <span class="hero-chip">💊 약·영양제</span>
             <span class="hero-chip">🧸 어린이 제품</span>

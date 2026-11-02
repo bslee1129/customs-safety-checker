@@ -50,7 +50,7 @@ html, body, [class*="css"], .stApp, button, input, textarea, select {
     font-family: 'Pretendard', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif !important;
 }
 .stApp { background: #F7F9FC; }
-.block-container { padding-top: 1.2rem !important; max-width: 1180px; }
+.block-container { padding-top: 3.6rem !important; max-width: 1180px; }
 h1, h2, h3, h4 { letter-spacing: -0.4px; color: #111827; }
 p, li { font-size: 1rem; line-height: 1.65; }
 

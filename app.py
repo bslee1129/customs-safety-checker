@@ -92,56 +92,40 @@ div[data-testid="stFileUploader"] section {
 .gov-strip { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 0.86rem; color: #4B5563; padding: 6px 2px; }
 .gov-strip b { color: #1B64DA; }
 
-/* 첫 화면 큰 안내판 */
+/* 첫 화면 안내판 (작게) */
 .hero {
-    background: linear-gradient(135deg, #1B64DA 0%, #3B82F6 60%, #60A5FA 100%);
-    color: #FFFFFF; border-radius: 24px; padding: 34px 36px; margin: 6px 0 26px 0;
-    box-shadow: 0 12px 30px rgba(27, 100, 218, 0.22); position: relative; overflow: hidden;
+    background: linear-gradient(135deg, #1B64DA 0%, #3B82F6 70%, #60A5FA 100%);
+    color: #FFFFFF; border-radius: 18px; padding: 16px 22px; margin: 2px 0 14px 0;
+    box-shadow: 0 6px 18px rgba(27, 100, 218, 0.18);
 }
-.hero::after {
-    content: "🛍️"; position: absolute; right: 28px; bottom: -14px; font-size: 7.5rem; opacity: 0.18; transform: rotate(-10deg);
-}
-.hero-tag { display: inline-block; background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.35);
-    padding: 4px 12px; border-radius: 999px; font-size: 0.85rem; font-weight: 600; margin-bottom: 14px; }
-.hero h1 { color: #FFFFFF !important; font-size: 2.2rem; font-weight: 800; margin: 0 0 10px 0; line-height: 1.3; }
-.hero p { color: #EAF2FF; font-size: 1.08rem; margin: 0 0 18px 0; max-width: 760px; }
-.hero-chips { display: flex; gap: 8px; flex-wrap: wrap; }
-.hero-chip { background: #FFFFFF; color: #1B64DA; font-weight: 700; font-size: 0.9rem; padding: 6px 14px; border-radius: 999px; }
+.hero h1 { color: #FFFFFF !important; font-size: 1.45rem; font-weight: 800; margin: 0 0 4px 0; padding: 0; line-height: 1.35; }
+.hero p { color: #EAF2FF; font-size: 0.95rem; margin: 0 0 10px 0; line-height: 1.5; }
+.hero-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.hero-chip { background: rgba(255,255,255,0.95); color: #1B64DA; font-weight: 700; font-size: 0.85rem; padding: 4px 11px; border-radius: 999px; }
+.hero-chip.soft { background: rgba(255,255,255,0.18); color: #FFFFFF; border: 1px solid rgba(255,255,255,0.35); }
 
 /* 구역 제목 */
 .sec-title { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 8px 0 14px 0; }
 .sec-title h2 { font-size: 1.45rem; font-weight: 800; margin: 0; padding: 0; }
 .sec-title span { color: #6B7280; font-size: 0.98rem; }
 
-/* 4가지 주제 카드 */
-.topic-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-bottom: 28px; }
-.topic-card {
-    background: #FFFFFF; border: 1px solid #E3E9F2; border-radius: 20px; padding: 22px 20px;
-    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05); transition: transform .15s, box-shadow .15s;
-}
-.topic-card:hover { transform: translateY(-3px); box-shadow: 0 10px 24px rgba(15, 23, 42, 0.09); }
-.topic-icon { width: 54px; height: 54px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; margin-bottom: 14px; }
-.topic-card h3 { font-size: 1.15rem; font-weight: 800; margin: 0 0 4px 0; padding: 0; }
-.topic-q { font-size: 0.95rem; font-weight: 700; margin: 0 0 8px 0 !important; }
-.topic-card p.desc { font-size: 0.92rem; color: #4B5563; margin: 0; line-height: 1.6; }
+/* 4가지 주제 카드 (작게) */
+.topic-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-bottom: 8px; }
+.topic-card { background: #FFFFFF; border: 1px solid #E3E9F2; border-radius: 16px; padding: 14px 16px; display: flex; gap: 12px; align-items: flex-start; }
+.topic-icon { flex: 0 0 auto; width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; }
+.topic-card h3 { font-size: 1.02rem; font-weight: 800; margin: 0 0 2px 0; padding: 0; }
+.topic-q { font-size: 0.88rem; font-weight: 700; margin: 0 0 4px 0 !important; }
+.topic-card p.desc { font-size: 0.86rem; color: #4B5563; margin: 0; line-height: 1.5; }
 .c-blue  .topic-icon { background: #E8F0FE; } .c-blue  .topic-q { color: #1B64DA; }
 .c-pink  .topic-icon { background: #FDECF3; } .c-pink  .topic-q { color: #D6336C; }
 .c-green .topic-icon { background: #E6F6EE; } .c-green .topic-q { color: #128A4E; }
 .c-amber .topic-icon { background: #FFF4DE; } .c-amber .topic-q { color: #C2760A; }
 
-/* 이용 방법 3단계 */
-.steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-bottom: 30px; }
-.step { background: #FFFFFF; border: 1px solid #E3E9F2; border-radius: 18px; padding: 18px; display: flex; gap: 14px; align-items: center; }
-.step-num { flex: 0 0 auto; width: 44px; height: 44px; border-radius: 50%; background: #1B64DA; color: #FFFFFF;
-    font-weight: 800; font-size: 1.15rem; display: flex; align-items: center; justify-content: center; }
-.step b { display: block; font-size: 1.02rem; color: #111827; }
-.step small { color: #6B7280; font-size: 0.9rem; }
-
 /* 사진 확인 안내판 */
-.check-box { background: #FFFFFF; border: 2px solid #BFD4FA; border-radius: 22px; padding: 22px 24px; margin: 4px 0 18px 0; }
-.check-box h2 { font-size: 1.4rem; font-weight: 800; margin: 0 0 6px 0; padding: 0; }
+.check-box { background: #FFFFFF; border: 2px solid #BFD4FA; border-radius: 18px; padding: 14px 18px; margin: 0 0 12px 0; }
+.check-box h2 { font-size: 1.2rem; font-weight: 800; margin: 0 0 6px 0; padding: 0; }
 .check-box p { color: #4B5563; margin: 0; }
-.shot-tips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.shot-tips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
 .shot-tip { background: #F1F6FF; color: #1E3A8A; border-radius: 10px; padding: 6px 12px; font-size: 0.9rem; font-weight: 600; }
 
 /* 결과 판정 카드 */
@@ -188,10 +172,9 @@ section[data-testid="stSidebar"] { background: #FFFFFF; border-right: 1px solid 
 
 /* 휴대폰 화면 */
 @media (max-width: 640px) {
-    .hero { padding: 24px 20px; border-radius: 18px; }
-    .hero h1 { font-size: 1.6rem; }
-    .hero p { font-size: 0.98rem; }
-    .hero::after { font-size: 5rem; }
+    .hero { padding: 14px 16px; border-radius: 14px; }
+    .hero h1 { font-size: 1.2rem; }
+    .hero p { font-size: 0.9rem; }
     .topic-grid { gap: 10px; }
     .verdict { flex-direction: column; gap: 8px; padding: 18px; }
     .verdict h2 { font-size: 1.3rem; }
@@ -276,59 +259,18 @@ def render_user_service():
         """)
         st.caption("국번 없이 걸면 돼요.")
 
-    # 첫 화면 큰 안내판
+    # 첫 화면 안내판 (작게 — 사진 올리기가 바로 보이도록)
     show_html("""
     <div class="hero">
-        <div class="hero-tag">🛡️ 해외직구 안심체크</div>
-        <h1>해외에서 사기 전에,<br>사진 한 장으로 안심 체크!</h1>
-        <p>약·영양제부터 아이 장난감, 생활용품, 전기제품까지.
-        사진만 올리면 <b>우리나라에 들여와도 되는지</b>, <b>써도 안전한지</b> 정부 자료로 바로 알려드려요.</p>
+        <h1>🛡️ 해외직구, 사기 전에 사진 한 장으로 안심 체크!</h1>
+        <p>사진만 올리면 <b>우리나라에 들여와도 되는지</b>, <b>써도 안전한지</b> 정부 자료로 바로 알려드려요.</p>
         <div class="hero-chips">
-            <span class="hero-chip">✔ 무료</span>
-            <span class="hero-chip">✔ 회원가입 없이</span>
-            <span class="hero-chip">✔ 영어 몰라도 OK</span>
+            <span class="hero-chip">💊 약·영양제</span>
+            <span class="hero-chip">🧸 어린이 제품</span>
+            <span class="hero-chip">🧴 생활용품</span>
+            <span class="hero-chip">🔌 전기용품</span>
+            <span class="hero-chip soft">무료 · 회원가입 없이</span>
         </div>
-    </div>
-    """)
-
-    # 무엇을 확인할 수 있나요? (4가지 주제)
-    show_html("""
-    <div class="sec-title"><h2>무엇을 확인할 수 있나요?</h2><span>이런 물건을 사기 전에 꼭 확인해 보세요</span></div>
-    <div class="topic-grid">
-        <div class="topic-card c-blue">
-            <div class="topic-icon">💊</div>
-            <h3>해외 약·영양제</h3>
-            <p class="topic-q">먹어도 괜찮은 약일까요?</p>
-            <p class="desc">우리나라에 들여올 수 없는 성분이 들었는지, 의사 처방전이 필요한 약인지 알려드려요.</p>
-        </div>
-        <div class="topic-card c-pink">
-            <div class="topic-icon">🧸</div>
-            <h3>어린이 제품</h3>
-            <p class="topic-q">우리 아이가 써도 될까요?</p>
-            <p class="desc">장난감·유아용품에서 몸에 해로운 물질이 나와 회수(리콜)된 적이 있는지 확인해요.</p>
-        </div>
-        <div class="topic-card c-green">
-            <div class="topic-icon">🧴</div>
-            <h3>생활용품</h3>
-            <p class="topic-q">매일 쓰는 물건, 안전할까요?</p>
-            <p class="desc">가방·주방용품·생활화학제품 등이 안전 인증을 받았는지, 문제가 된 적은 없는지 찾아봐요.</p>
-        </div>
-        <div class="topic-card c-amber">
-            <div class="topic-icon">🔌</div>
-            <h3>전기용품</h3>
-            <p class="topic-q">불나거나 감전될 걱정은요?</p>
-            <p class="desc">충전기·보조배터리·드라이어 등이 KC 안전인증과 전파인증을 제대로 받았는지 확인해요.</p>
-        </div>
-    </div>
-    """)
-
-    # 이용 방법 3단계
-    show_html("""
-    <div class="sec-title"><h2>이용 방법은 딱 3단계</h2></div>
-    <div class="steps">
-        <div class="step"><div class="step-num">1</div><div><b>📷 사진 찍기</b><small>제품 앞·뒤·옆면을 찍어 올려요</small></div></div>
-        <div class="step"><div class="step-num">2</div><div><b>🔍 자동으로 확인</b><small>AI가 글자를 읽고 정부 자료와 비교해요</small></div></div>
-        <div class="step"><div class="step-num">3</div><div><b>✅ 결과 보기</b><small>사도 되는지, 조심할 점은 뭔지 알려드려요</small></div></div>
     </div>
     """)
 
@@ -338,7 +280,7 @@ def render_user_service():
     show_html("""
     <div class="check-box">
         <h2>📷 사진으로 바로 확인하기</h2>
-        <p>여러 장을 올릴수록 더 정확해요. 글자가 잘 보이게 가까이에서 찍어 주세요.</p>
+        <p>① 사진 올리기 → ② [안전한지 확인하기] 누르기 → ③ 결과 보기 · 여러 장일수록 더 정확해요.</p>
         <div class="shot-tips">
             <span class="shot-tip">앞면 · 제품 이름</span>
             <span class="shot-tip">뒷면 · 성분표</span>
@@ -728,6 +670,45 @@ def render_user_service():
                                 st.info(f"사진에서 읽은 KC 인증번호(`{kc_num}`)를 바로 찾지 못했어요. 아래 '직접 찾아보기'에서 다시 검색해 보세요.")
         else:
             st.info("👆 사진을 올린 뒤 **[🔍 안전한지 확인하기]** 버튼을 눌러 주세요.")
+
+            # 무엇을 확인할 수 있나요? (4가지 주제)
+            show_html("""
+            <div class="sec-title" style="margin-top: 26px;"><h2>이런 물건을 확인할 수 있어요</h2><span>사기 전에 꼭 확인해 보세요</span></div>
+            <div class="topic-grid">
+                <div class="topic-card c-blue">
+                    <div class="topic-icon">💊</div>
+                    <div>
+                    <h3>해외 약·영양제</h3>
+                    <p class="topic-q">먹어도 괜찮은 약일까요?</p>
+                    <p class="desc">우리나라에 들여올 수 없는 성분이 들었는지, 의사 처방전이 필요한 약인지 알려드려요.</p>
+        </div>
+                </div>
+                <div class="topic-card c-pink">
+                    <div class="topic-icon">🧸</div>
+                    <div>
+                    <h3>어린이 제품</h3>
+                    <p class="topic-q">우리 아이가 써도 될까요?</p>
+                    <p class="desc">장난감·유아용품에서 몸에 해로운 물질이 나와 회수(리콜)된 적이 있는지 확인해요.</p>
+        </div>
+                </div>
+                <div class="topic-card c-green">
+                    <div class="topic-icon">🧴</div>
+                    <div>
+                    <h3>생활용품</h3>
+                    <p class="topic-q">매일 쓰는 물건, 안전할까요?</p>
+                    <p class="desc">가방·주방용품·생활화학제품 등이 안전 인증을 받았는지, 문제가 된 적은 없는지 찾아봐요.</p>
+        </div>
+                </div>
+                <div class="topic-card c-amber">
+                    <div class="topic-icon">🔌</div>
+                    <div>
+                    <h3>전기용품</h3>
+                    <p class="topic-q">불나거나 감전될 걱정은요?</p>
+                    <p class="desc">충전기·보조배터리·드라이어 등이 KC 안전인증과 전파인증을 제대로 받았는지 확인해요.</p>
+        </div>
+                </div>
+            </div>
+            """)
 
         # =============================================================
         # 직접 찾아보기 (사진 없이 이름·번호로 검색)

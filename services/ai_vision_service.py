@@ -159,7 +159,11 @@ class AiVisionService:
 4. 멜라토닌, 요힘빈, 센노사이드, 실데나필/타다라필, 에페드린, CBD 등 국내 반입 제한 성분을 엄격히 선별하세요.
 5. 전문 용어보다는 국민이 안심하고 이해할 수 있는 쉬운 한국어로 설명하세요.
 6. harmful_suspects에는 약·식품의 성분 이름만 넣으세요. 완구·어린이제품·전기용품·생활용품의 표시 오류나 안전 문제는 성분이 아니므로 harmful_suspects에 넣지 말고 why_prohibited_reason과 health_risks에 설명하세요.
+7. 오늘 날짜는 {today}입니다. 제조일·유통기한 등 날짜는 반드시 오늘 날짜를 기준으로 판단하세요. 오늘보다 이전 날짜를 미래라고 판단하면 안 됩니다.
 """
+        from datetime import datetime, timedelta, timezone
+        today_kst = datetime.now(timezone(timedelta(hours=9))).strftime("%Y년 %m월 %d일")
+        prompt = prompt.replace("{today}", today_kst)
 
         # 호출할 모델 순서 (fallback)
         models_to_try = [

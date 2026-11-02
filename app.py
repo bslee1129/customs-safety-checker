@@ -372,7 +372,9 @@ def render_user_service():
                             product_name=p_name,
                             barcode=b_code,
                             kc_cert_num=kc_num,
-                            cert_num=kc_num
+                            cert_num=kc_num,
+                            label_maker=ocr_result.get("maker_name") or ocr_result.get("brand") or "",
+                            label_date=ocr_result.get("manufacture_date") or ""
                         )
                         rra_res_list = rra_api.multi_lookup(rra_nums)
 
@@ -393,6 +395,8 @@ def render_user_service():
                         citizen_summary = match_result.get("citizen_summary") or {}
                         is_blocked = match_result.get("matched", False)
                         has_safety_danger = safety_res.get("has_danger", False)
+                        recall_check = safety_res.get("recall_check", 0)
+                        recall_out = safety_res.get("recall_out_of_scope", 0)
 
                         db_rec = match_result.get("record") or {}
                         is_product_kind = match_result.get("kind") == "product"
@@ -431,6 +435,17 @@ def render_user_service():
                                 </div>
                             </div>
                             """)
+                        elif recall_check:
+                            show_html("""
+                            <div class="verdict warn">
+                                <div class="verdict-icon">⚠️</div>
+                                <div>
+                                    <h2>같은 모델이 리콜됐어요. 내 제품이 대상인지 확인해 주세요</h2>
+                                    <p>이 리콜은 특정 제조사·생산 시기 제품만 대상이에요.
+                                    아래 '리콜 대상 범위'와 제품 라벨(제조사·제조일)을 비교해 주세요.</p>
+                                </div>
+                            </div>
+                            """)
                         elif food_status == "WARNING" and is_product_kind:
                             show_html("""
                             <div class="verdict warn">
@@ -450,6 +465,17 @@ def render_user_service():
                                     <h2>잠깐! 꼭 확인이 필요해요</h2>
                                     <p>의사 처방전이 있어야 하거나, 들여올 수 있는 양이 정해져 있는 제품이에요.
                                     아래 안내를 읽고 구매를 결정해 주세요.</p>
+                                </div>
+                            </div>
+                            """)
+                        elif recall_out:
+                            show_html("""
+                            <div class="verdict safe">
+                                <div class="verdict-icon">✅</div>
+                                <div>
+                                    <h2>리콜 대상이 아닌 제품으로 보여요</h2>
+                                    <p>같은 모델이 리콜된 적은 있지만, 라벨의 제조사·제조일을 보면 이 제품은 리콜 대상이 아니에요.
+                                    포장 상자와 제품 본체 라벨이 다를 수 있으니 본체 라벨도 한 번 확인해 주세요.</p>
                                 </div>
                             </div>
                             """)
@@ -553,8 +579,13 @@ def render_user_service():
                                     st.write(f"- **판단 근거**: {match_stage or '정부 차단 기준과 일치'}")
                                     st.write(f"- **자료 출처**: {matched_source}")
                                 elif safety_res.get("has_danger"):
-                                    st.write("- **확인 내용**: 정부 안전 검사에서 리콜(회수) 명령을 받은 제품")
+                                    st.write("- **확인 내용**: 리콜(회수) 대상 제품")
                                     st.write(f"- **KC 인증번호**: `{kc_num or '-'}`")
+                                elif recall_check or recall_out:
+                                    st.write("- **확인 내용**: 같은 모델의 리콜 공고가 있어요 (대상 여부는 아래 참고)")
+                                    st.write(f"- **KC 인증번호**: `{kc_num or '-'}`")
+                                    st.write(f"- **라벨의 제조사**: {ocr_result.get('maker_name') or '-'}")
+                                    st.write(f"- **라벨의 제조일**: {ocr_result.get('manufacture_date') or '-'}")
                                 else:
                                     st.write("- **결과**: 위험 제품 목록에 없는 제품이에요.")
 
@@ -601,9 +632,26 @@ def render_user_service():
                                 r_uid = dr.get("recallUid")
                                 r_board_url = dr.get("source_url") or f"https://www.safetykorea.kr/recall/ajax/recallBoard?recallUid={r_uid}"
 
+                                scope = dr.get("scope", "in_scope")
+                                if scope == "out_of_scope":
+                                    sc_cls, sc_title = "green", "ℹ️ 같은 모델이 리콜됐지만, 이 제품은 대상이 아니에요"
+                                elif scope == "check":
+                                    sc_cls, sc_title = "amber", "⚠️ 같은 모델이 리콜됐어요. 대상인지 확인해 주세요"
+                                else:
+                                    sc_cls, sc_title = "red", "🚨 회수(리콜) 대상 제품이에요"
+                                scope_html = ""
+                                if dr.get("scope_reason") and dr.get("scope_sentence"):
+                                    scope_html = f"""
+                                    <div class="qa" style="background:#FFFFFF; border:1px dashed #CBD5E1;">
+                                        <div class="qa-q">🔎 내 제품은 대상일까요?</div>
+                                        <div class="qa-a"><b>{_t(dr.get('scope_reason'))}</b></div>
+                                        <div class="qa-q">📌 리콜 대상 범위 (공고 원문)</div>
+                                        <div class="qa-a">{_t(dr.get('scope_sentence'))}</div>
+                                    </div>"""
                                 show_html(f"""
-                                <div class="info-card red">
-                                    <h4>🚨 회수(리콜) 명령을 받은 제품이에요 <span class="badge-danger">{_t(dr.get('recallTypeName'), '리콜')}</span></h4>
+                                <div class="info-card {sc_cls}">
+                                    <h4>{sc_title} <span class="badge-danger">{_t(dr.get('recallTypeName'), '리콜')}</span></h4>
+                                    {scope_html}
                                     <div class="info-row"><b>제품 이름(모델)</b> · {_t(dr.get('recallProductName'))} ({_t(dr.get('recallModelName'))})</div>
                                     <div class="info-row"><b>KC 인증번호</b> · <code>{_t(dr.get('certNum'))}</code></div>
                                     <div class="info-row"><b>판매·수입 회사</b> · {_t(dr.get('recallCmpnyName'))} (문의 {_t(dr.get('recallInqryTel'))})</div>
@@ -674,7 +722,7 @@ def render_user_service():
                                 for cm in cert_matches:
                                     c_num = cm.get("certNum")
                                     state = cm.get('certState', '적합')
-                                    has_recall_for_this = any(r.get("certNum") == c_num for r in dom_recalls)
+                                    has_recall_for_this = any(r.get("certNum") == c_num and r.get("scope", "in_scope") != "out_of_scope" for r in dom_recalls)
 
                                     if has_recall_for_this:
                                         badge_html = "<span class='badge-warning'>인증 상태: 적합</span> <span class='badge-danger'>🚨 나중에 리콜된 제품</span>"
@@ -819,7 +867,10 @@ def render_user_service():
                                 "국표원_안전정보": safety_res
                             })
                     else:
-                        st.success("✅ 정부의 위험 제품·리콜 목록에서 일치하는 내용을 찾지 못했어요.")
+                        if safety_res.get("recall_check"):
+                            st.warning("⚠️ 같은 이름의 제품에 조건부 리콜 공고가 있어요. '리콜(회수) 제품' 탭에서 대상 범위를 확인해 주세요.")
+                        else:
+                            st.success("✅ 정부의 위험 제품·리콜 목록에서 일치하는 내용을 찾지 못했어요.")
 
         render_kc_search(tab_kc)
         render_rra_search(tab_rra)
@@ -1213,7 +1264,7 @@ def render_recall_search(container):
                                     if item.get("certNum"):
                                         st.write(f"- **인증번호**: `{item.get('certNum')}`")
                                     st.write(f"- **발표일**: {item.get('publishDate', '-')}")
-                                    st.write(f"- **만든 나라**: {item.get('makingCntryName', '-')}")
+                                    st.write(f"- **만든 나라**: {(item.get('makingCntryName') or '-')}")
                                     st.write(f"- **어떤 문제가 있었나요?** {item.get('harmDscr', '자세한 내용은 원문을 확인하세요')}")
                                     st.write(f"- **어떤 사고가 날 수 있나요?** {item.get('accidentCaseDscr', '-')}")
                                     st.write(f"- **이렇게 하세요**: {item.get('publishActionDscr', '-')}")
@@ -1259,7 +1310,7 @@ def render_recall_search(container):
                                     st.warning(f"**발표한 기관**: {item.get('recallPblshOrgnName', '-')} | **리콜 종류**: {item.get('recallTypeName', '-')}")
                                     st.write(f"- **어떤 문제가 있었나요?** {item.get('violateDscr', '-')}")
                                     st.write(f"- **이렇게 하세요**: {item.get('publishActionDscr', '-')}")
-                                    st.write(f"- **만든 나라**: {item.get('makingCntryName', '-')}")
+                                    st.write(f"- **만든 나라**: {(item.get('makingCntryName') or '-')}")
                                     img_url = item.get("imageUrl")
                                     if img_url:
                                         first_img = img_url.split(",")[0]
@@ -1296,7 +1347,7 @@ def render_overseas_search(container):
                                 st.error(f"**🚨 무엇이 문제였나요?** {item.get('harmDscr', '-')}")
                                 st.write(f"- **몸에 미치는 영향**: {item.get('accidentCaseDscr', '-')}")
                                 st.write(f"- **발표일**: {item.get('publishDate', '-')}")
-                                st.write(f"- **만든 나라**: {item.get('makingCntryName', '-')}")
+                                st.write(f"- **만든 나라**: {(item.get('makingCntryName') or '-')}")
                                 img_url = item.get("imageUrl")
                                 if img_url:
                                     first_img = img_url.split(",")[0]

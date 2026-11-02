@@ -114,7 +114,7 @@ div[data-testid="stFileUploader"] section {
 .sec-title span { color: #6B7280; font-size: 0.98rem; }
 
 /* 4가지 주제 카드 */
-.topic-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 28px; }
+.topic-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-bottom: 28px; }
 .topic-card {
     background: #FFFFFF; border: 1px solid #E3E9F2; border-radius: 20px; padding: 22px 20px;
     box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05); transition: transform .15s, box-shadow .15s;
@@ -130,7 +130,7 @@ div[data-testid="stFileUploader"] section {
 .c-amber .topic-icon { background: #FFF4DE; } .c-amber .topic-q { color: #C2760A; }
 
 /* 이용 방법 3단계 */
-.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 30px; }
+.steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-bottom: 30px; }
 .step { background: #FFFFFF; border: 1px solid #E3E9F2; border-radius: 18px; padding: 18px; display: flex; gap: 14px; align-items: center; }
 .step-num { flex: 0 0 auto; width: 44px; height: 44px; border-radius: 50%; background: #1B64DA; color: #FFFFFF;
     font-weight: 800; font-size: 1.15rem; display: flex; align-items: center; justify-content: center; }
@@ -187,16 +187,12 @@ section[data-testid="stSidebar"] { background: #FFFFFF; border-right: 1px solid 
 }
 
 /* 휴대폰 화면 */
-@media (max-width: 900px) {
-    .topic-grid { grid-template-columns: repeat(2, 1fr); }
-}
 @media (max-width: 640px) {
     .hero { padding: 24px 20px; border-radius: 18px; }
     .hero h1 { font-size: 1.6rem; }
     .hero p { font-size: 0.98rem; }
     .hero::after { font-size: 5rem; }
-    .topic-grid { grid-template-columns: 1fr; gap: 10px; }
-    .steps { grid-template-columns: 1fr; }
+    .topic-grid { gap: 10px; }
     .verdict { flex-direction: column; gap: 8px; padding: 18px; }
     .verdict h2 { font-size: 1.3rem; }
     div[data-testid="stImage"] img { max-height: 280px !important; }

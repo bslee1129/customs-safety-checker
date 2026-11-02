@@ -432,53 +432,76 @@ def render_user_service():
 
     # 💡 "이것으로 어떤 게 가능한가?" 가시적 비주얼 쇼케이스 (3대 핵심 혜택)
     st.markdown("""
-    <div class="gov-feature-showcase">
-        <div class="showcase-header">
-            <span class="showcase-tag">SERVICE GUIDE</span>
-            <h3 class="showcase-title">💡 안전지킴이로 사전에 예방하고 확인할 수 있는 3대 핵심 안심 기능</h3>
-        </div>
-        <div class="feature-card-grid">
-            <!-- 1. AI 라벨 자동 판독 -->
-            <div class="feature-card">
-                <div class="feature-card-top">
-                    <div class="feature-icon-circle blue">
-                        <i class="fa-solid fa-camera" style="color: #38bdf8;"></i>
-                    </div>
-                    <span class="feature-step-num">STEP 01</span>
-                </div>
-                <span class="feature-card-badge blue">원클릭 AI 자동인식</span>
-                <h4>영문 성분·모델명 몰라도 OK</h4>
-                <p>영문 라벨, 복잡한 화학성분표(Supplement Facts), 바코드를 직접 타이핑할 필요 없이 사진 1장으로 AI가 위험 요소를 즉시 자동 추출합니다.</p>
-            </div>
-
-            <!-- 2. 폐기 비용 및 통관 보류 방지 -->
-            <div class="feature-card">
-                <div class="feature-card-top">
-                    <div class="feature-icon-circle amber">
-                        <i class="fa-solid fa-ban" style="color: #fbbf24;"></i>
-                    </div>
-                    <span class="feature-step-num">STEP 02</span>
-                </div>
-                <span class="feature-card-badge amber">폐기비용·통관보류 방지</span>
-                <h4>통관 폐기 수수료 원천 차단</h4>
-                <p>구매 결제 전 유해 의약품(멜라토닌·요힘빈 등) 및 건기식 6병 수량기준 초과 여부를 사전에 파악하여 수만원대 폐기 수수료와 물품 몰수를 예방합니다.</p>
-            </div>
-
-            <!-- 3. 범정부 4대 안전 DB 연동 -->
-            <div class="feature-card">
-                <div class="feature-card-top">
-                    <div class="feature-icon-circle emerald">
-                        <i class="fa-solid fa-shield-halved" style="color: #34d399;"></i>
-                    </div>
-                    <span class="feature-step-num">STEP 03</span>
-                </div>
-                <span class="feature-card-badge emerald">범정부 4대 DB 연계</span>
-                <h4>정부 공인 안전DB 1:1 대조</h4>
-                <p>식약처(위해식품 5,055건) + 국표원(KC인증·유통리콜·해외직구 부적합) + 전파연구원(전자파적합성) 공식 전산망을 실시간 교차 검증합니다.</p>
-            </div>
-        </div>
+    <div style="display: flex; align-items: center; gap: 8px; margin: 20px 0 12px 0;">
+        <span style="background: #1e3a8a; color: #93c5fd; font-size: 0.72rem; font-weight: 700; padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(147, 197, 253, 0.3);">
+            SERVICE GUIDE
+        </span>
+        <h3 style="font-size: 1.05rem; font-weight: 700; color: #f1f5f9; margin: 0;">
+            💡 안전지킴이로 사전에 예방하고 확인할 수 있는 3대 핵심 안심 기능
+        </h3>
     </div>
     """, unsafe_allow_html=True)
+
+    col_val1, col_val2, col_val3 = st.columns(3)
+
+    with col_val1:
+        st.markdown("""
+<div style="background: rgba(30, 41, 59, 0.65); border: 1px solid rgba(148, 163, 184, 0.25); border-radius: 12px; padding: 18px; min-height: 220px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
+            📷
+        </div>
+        <span style="font-size: 0.75rem; font-weight: 800; color: #94a3b8;">STEP 01</span>
+    </div>
+    <span style="display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 4px; background: rgba(59, 130, 246, 0.2); color: #60a5fa; margin-bottom: 8px;">
+        원클릭 AI 자동인식
+    </span>
+    <h4 style="margin: 0 0 8px 0; font-size: 1rem; font-weight: 700; color: #f8fafc;">영문 성분·모델명 몰라도 OK</h4>
+    <p style="margin: 0; font-size: 0.84rem; line-height: 1.55; color: #94a3b8;">
+        영문 라벨, 복잡한 화학성분표(Supplement Facts), 바코드를 직접 타이핑할 필요 없이 사진 1장으로 AI가 위험 요소를 즉시 자동 추출합니다.
+    </p>
+</div>
+""", unsafe_allow_html=True)
+
+    with col_val2:
+        st.markdown("""
+<div style="background: rgba(30, 41, 59, 0.65); border: 1px solid rgba(148, 163, 184, 0.25); border-radius: 12px; padding: 18px; min-height: 220px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(245, 158, 11, 0.2); border: 1px solid rgba(245, 158, 11, 0.4); display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
+            🚫
+        </div>
+        <span style="font-size: 0.75rem; font-weight: 800; color: #94a3b8;">STEP 02</span>
+    </div>
+    <span style="display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 4px; background: rgba(245, 158, 11, 0.2); color: #fbbf24; margin-bottom: 8px;">
+        폐기비용·통관보류 방지
+    </span>
+    <h4 style="margin: 0 0 8px 0; font-size: 1rem; font-weight: 700; color: #f8fafc;">통관 폐기 수수료 원천 차단</h4>
+    <p style="margin: 0; font-size: 0.84rem; line-height: 1.55; color: #94a3b8;">
+        구매 결제 전 유해 의약품(멜라토닌·요힘빈 등) 및 건기식 6병 수량기준 초과 여부를 사전에 파악하여 수만원대 폐기 수수료와 물품 몰수를 예방합니다.
+    </p>
+</div>
+""", unsafe_allow_html=True)
+
+    with col_val3:
+        st.markdown("""
+<div style="background: rgba(30, 41, 59, 0.65); border: 1px solid rgba(148, 163, 184, 0.25); border-radius: 12px; padding: 18px; min-height: 220px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.4); display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
+            🛡️
+        </div>
+        <span style="font-size: 0.75rem; font-weight: 800; color: #94a3b8;">STEP 03</span>
+    </div>
+    <span style="display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 4px; background: rgba(16, 185, 129, 0.2); color: #34d399; margin-bottom: 8px;">
+        범정부 4대 DB 연계
+    </span>
+    <h4 style="margin: 0 0 8px 0; font-size: 1rem; font-weight: 700; color: #f8fafc;">정부 공인 안전DB 1:1 대조</h4>
+    <p style="margin: 0; font-size: 0.84rem; line-height: 1.55; color: #94a3b8;">
+        식약처(위해식품 5,055건) + 국표원(KC인증·유통리콜·해외직구 부적합) + 전파연구원(전자파적합성) 공식 전산망을 실시간 교차 검증합니다.
+    </p>
+</div>
+""", unsafe_allow_html=True)
+
+    st.markdown("<div style='margin-bottom: 24px;'></div>", unsafe_allow_html=True)
 
     # =============================================================
     # [핵심 메인 기능] AI 사진 안심 검사 진단 데스크 (센터 스테이지)

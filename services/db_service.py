@@ -643,6 +643,42 @@ class DatabaseService:
         # -------------------------------------------------------------
         # 4단계: Gemini AI가 의심/제한 성분(멜라토닌 등)을 감지한 경우
         # -------------------------------------------------------------
+        # 4-1단계: 약·식품이 아닌 제품(어린이제품·전기용품·생활용품)은 '제품 안전 확인 필요'로 판정
+        drug_keywords = ("의약품", "건강기능식품", "보충제", "식품", "영양", "약")
+        is_drug_category = any(k in detected_category for k in drug_keywords)
+        if (harmful_suspects or ocr_data.get("is_prohibited_suspect")) and not is_drug_category:
+            concern = ", ".join(harmful_suspects) if harmful_suspects else "제품 안전 표시 확인 필요"
+            why_text = ai_why or "제품에 적힌 안전 정보(사용 연령, 인증 표시 등)에서 확인이 필요한 부분이 발견되었어요."
+            risks_text = ai_health or "표시 정보와 다르게 사용하면 다치거나 사고가 날 수 있어요."
+            return {
+                "matched": True,
+                "status": "WARNING",
+                "kind": "product",
+                "verdict": "확인 필요 (제품 안전 표시)",
+                "confidence": 70.0,
+                "citizen_summary": {
+                    "is_safe": False,
+                    "can_import": "확인 필요",
+                    "badge_type": "warning",
+                    "badge_text": "⚠️ 제품 안전 표시 확인 필요",
+                    "headline": "제품 안전 표시에서 확인이 필요한 부분이 있어요",
+                    "why_prohibited": why_text,
+                    "health_risks": risks_text,
+                    "legal_basis": "전기용품 및 생활용품 안전관리법 · 어린이제품 안전 특별법",
+                    "action_guide": ai_advice or "판매자에게 KC 인증 정보와 사용 연령·체중 등 표시 내용을 확인하고, 제품안전정보센터(safetykorea.kr)에서 인증번호를 직접 조회해 보세요.",
+                    "customs_rule": "어린이제품·전기용품·생활용품은 KC 안전인증 등 안전 기준을 지켜야 합니다."
+                },
+                "match_reason": f"AI 제품 표시 판독 결과 확인 필요: {concern}",
+                "match_stage": "AI가 제품 표시를 읽고 판단",
+                "record": None,
+                "db_product_name": None,
+                "db_harmful_ingredient": concern,
+                "db_reason": why_text,
+                "db_local_image": None,
+                "db_remote_image_url": None,
+                "ocr_data": ocr_data
+            }
+
         if harmful_suspects or ocr_data.get("is_prohibited_suspect"):
             suspect_names = ", ".join(harmful_suspects) if harmful_suspects else "처방 필요 의약품 성분"
             first_suspect = harmful_suspects[0] if harmful_suspects else ""

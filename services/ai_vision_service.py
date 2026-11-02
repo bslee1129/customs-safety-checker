@@ -141,6 +141,8 @@ class AiVisionService:
   "kc_cert_num": "KC인증번호 또는 안전확인 신고 확인증 번호 (KC마크 주변 텍스트, 예: CB067R2661-5003 등, 없으면 null)",
   "rra_cert_nums": ["전자파적합등록번호 또는 방송통신기자재 적합성평가번호 (예: R-REM-Y15-YW1801, R-RRI-Y15-YW1802 등)"],
   "brand": "제조사 또는 브랜드명",
+  "maker_name": "라벨의 '제조사' 또는 '제조자' 칸에 적힌 회사 이름 그대로 (예: Dongguan Ganna Electronic Technology Co., Ltd., 없으면 null)",
+  "manufacture_date": "라벨의 '제조년월'·'제조일' 칸에 적힌 날짜 그대로 (예: 2026년 5월 25일, 2025.08, '별도 표시'이면 null)",
   "category": "완구/어린이제품 | 전자제품/배터리 | 일반의약품 | 전문의약품 | 건강기능식품(보충제) | 기타",
   "barcode": "바코드 숫자 (보이는 경우만, 예: 8809861002718, 없으면 null)",
   "ingredients": ["주요성분1", "주요성분2", "주요성분3", ...],
@@ -158,7 +160,13 @@ class AiVisionService:
 3. 성분표(Supplement Facts / Ingredients)가 있다면 모든 성분명을 하나도 빠짐없이 꼼꼼히 추출하세요.
 4. 멜라토닌, 요힘빈, 센노사이드, 실데나필/타다라필, 에페드린, CBD 등 국내 반입 제한 성분을 엄격히 선별하세요.
 5. 전문 용어보다는 국민이 안심하고 이해할 수 있는 쉬운 한국어로 설명하세요.
+6. harmful_suspects에는 약·식품의 성분 이름만 넣으세요. 완구·어린이제품·전기용품·생활용품의 표시 오류나 안전 문제는 성분이 아니므로 harmful_suspects에 넣지 말고 why_prohibited_reason과 health_risks에 설명하세요.
+7. 오늘 날짜는 {today}입니다. 제조일·유통기한 등 날짜는 반드시 오늘 날짜를 기준으로 판단하세요. 오늘보다 이전 날짜를 미래라고 판단하면 안 됩니다.
+8. 같은 인증번호라도 제조사·생산 시기에 따라 리콜 대상이 달라질 수 있으니, maker_name과 manufacture_date는 라벨에 적힌 그대로 정확히 옮겨 적으세요.
 """
+        from datetime import datetime, timedelta, timezone
+        today_kst = datetime.now(timezone(timedelta(hours=9))).strftime("%Y년 %m월 %d일")
+        prompt = prompt.replace("{today}", today_kst)
 
         # 호출할 모델 순서 (fallback)
         models_to_try = [

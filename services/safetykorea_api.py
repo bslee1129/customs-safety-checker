@@ -2,6 +2,7 @@ import os
 import requests
 from typing import Dict, Any, List, Optional
 from config import SAFETYKOREA_API_KEY
+from services.recall_scope import check_recall_scope, scope_sentence
 
 class SafetyKoreaApi:
     """
@@ -212,6 +213,8 @@ class SafetyKoreaApi:
         kc_cert_num: str = "", 
         product_name_ko: str = "",
         cert_num: str = "",
+        label_maker: str = "",
+        label_date: str = "",
         **kwargs
     ) -> Dict[str, Any]:
         """
@@ -276,9 +279,7 @@ class SafetyKoreaApi:
                                     it[k] = det["data"][k]
 
                 result["domestic_recalls"].extend(res_dr_cert["items"])
-                result["has_danger"] = True
-                result["danger_count"] += len(res_dr_cert["items"])
-                result["summary_alerts"].append(f"🚨 KC인증번호 [{clean_kc}]에 등록된 국내 리콜 명령 확인!")
+                result["summary_alerts"].append(f"🚨 KC인증번호 [{clean_kc}]에 등록된 국내 리콜 공고 확인 (대상 범위는 아래에서 판정)")
 
         # 2) 검색 쿼리 구성 (한글 제품명 우선 -> 모델명 -> 영문명 -> 바코드)
         search_terms = []
@@ -319,8 +320,6 @@ class SafetyKoreaApi:
                                         it[k] = det["data"][k]
 
                     result["domestic_recalls"] = res_dr["items"]
-                    result["danger_count"] += len(res_dr["items"])
-                    result["has_danger"] = True
                     first_item = res_dr["items"][0]
                     result["summary_alerts"].append(f"🚨 국내 리콜 명령 대상 품목: {first_item.get('recallProductName')} (조치: {first_item.get('publishActionDscr') or '회수명령'})")
 
@@ -353,6 +352,35 @@ class SafetyKoreaApi:
                         result["danger_count"] += 1
                         result["summary_alerts"].append(f"🚨 KC 인증 취소/효력상실: [{target.get('certNum')}] ({state})")
 
+        self._apply_recall_scope(result, label_maker, label_date)
         return result
+
+    @staticmethod
+    def _apply_recall_scope(result: Dict[str, Any], label_maker: str = "", label_date: str = "") -> None:
+        """
+        리콜 공고의 대상 범위(제조사·생산 기간)와 라벨 정보를 비교해 각 리콜에 scope를 붙이고,
+        실제 대상인 리콜만 '위험'으로 셉니다.
+        """
+        in_scope, check, out_scope = 0, 0, 0
+        for it in result.get("domestic_recalls", []):
+            sc = check_recall_scope(it, label_maker, label_date)
+            it["scope"] = sc["scope"]
+            it["scope_reason"] = sc["reason"]
+            it["scope_sentence"] = scope_sentence(it)
+            if sc["scope"] == "in_scope":
+                in_scope += 1
+            elif sc["scope"] == "check":
+                check += 1
+            else:
+                out_scope += 1
+        if in_scope:
+            result["has_danger"] = True
+            result["danger_count"] += in_scope
+        if check:
+            result["has_warning"] = True
+            result["warning_count"] += check
+        result["recall_in_scope"] = in_scope
+        result["recall_check"] = check
+        result["recall_out_of_scope"] = out_scope
 
 safetykorea_api = SafetyKoreaApi()

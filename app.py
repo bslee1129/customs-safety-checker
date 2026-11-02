@@ -671,44 +671,44 @@ def render_user_service():
         else:
             st.info("👆 사진을 올린 뒤 **[🔍 안전한지 확인하기]** 버튼을 눌러 주세요.")
 
-            # 무엇을 확인할 수 있나요? (4가지 주제)
-            show_html("""
-            <div class="sec-title" style="margin-top: 26px;"><h2>이런 물건을 확인할 수 있어요</h2><span>사기 전에 꼭 확인해 보세요</span></div>
-            <div class="topic-grid">
-                <div class="topic-card c-blue">
-                    <div class="topic-icon">💊</div>
-                    <div>
-                    <h3>해외 약·영양제</h3>
-                    <p class="topic-q">먹어도 괜찮은 약일까요?</p>
-                    <p class="desc">우리나라에 들여올 수 없는 성분이 들었는지, 의사 처방전이 필요한 약인지 알려드려요.</p>
-        </div>
-                </div>
-                <div class="topic-card c-pink">
-                    <div class="topic-icon">🧸</div>
-                    <div>
-                    <h3>어린이 제품</h3>
-                    <p class="topic-q">우리 아이가 써도 될까요?</p>
-                    <p class="desc">장난감·유아용품에서 몸에 해로운 물질이 나와 회수(리콜)된 적이 있는지 확인해요.</p>
-        </div>
-                </div>
-                <div class="topic-card c-green">
-                    <div class="topic-icon">🧴</div>
-                    <div>
-                    <h3>생활용품</h3>
-                    <p class="topic-q">매일 쓰는 물건, 안전할까요?</p>
-                    <p class="desc">가방·주방용품·생활화학제품 등이 안전 인증을 받았는지, 문제가 된 적은 없는지 찾아봐요.</p>
-        </div>
-                </div>
-                <div class="topic-card c-amber">
-                    <div class="topic-icon">🔌</div>
-                    <div>
-                    <h3>전기용품</h3>
-                    <p class="topic-q">불나거나 감전될 걱정은요?</p>
-                    <p class="desc">충전기·보조배터리·드라이어 등이 KC 안전인증과 전파인증을 제대로 받았는지 확인해요.</p>
-        </div>
-                </div>
+        # 무엇을 확인할 수 있나요? (4가지 주제)
+        show_html("""
+        <div class="sec-title" style="margin-top: 26px;"><h2>이런 물건을 확인할 수 있어요</h2><span>사기 전에 꼭 확인해 보세요</span></div>
+        <div class="topic-grid">
+            <div class="topic-card c-blue">
+                <div class="topic-icon">💊</div>
+                <div>
+                <h3>해외 약·영양제</h3>
+                <p class="topic-q">먹어도 괜찮은 약일까요?</p>
+                <p class="desc">우리나라에 들여올 수 없는 성분이 들었는지, 의사 처방전이 필요한 약인지 알려드려요.</p>
+    </div>
             </div>
-            """)
+            <div class="topic-card c-pink">
+                <div class="topic-icon">🧸</div>
+                <div>
+                <h3>어린이 제품</h3>
+                <p class="topic-q">우리 아이가 써도 될까요?</p>
+                <p class="desc">장난감·유아용품에서 몸에 해로운 물질이 나와 회수(리콜)된 적이 있는지 확인해요.</p>
+    </div>
+            </div>
+            <div class="topic-card c-green">
+                <div class="topic-icon">🧴</div>
+                <div>
+                <h3>생활용품</h3>
+                <p class="topic-q">매일 쓰는 물건, 안전할까요?</p>
+                <p class="desc">가방·주방용품·생활화학제품 등이 안전 인증을 받았는지, 문제가 된 적은 없는지 찾아봐요.</p>
+    </div>
+            </div>
+            <div class="topic-card c-amber">
+                <div class="topic-icon">🔌</div>
+                <div>
+                <h3>전기용품</h3>
+                <p class="topic-q">불나거나 감전될 걱정은요?</p>
+                <p class="desc">충전기·보조배터리·드라이어 등이 KC 안전인증과 전파인증을 제대로 받았는지 확인해요.</p>
+    </div>
+            </div>
+        </div>
+        """)
 
         # =============================================================
         # 직접 찾아보기 (사진 없이 이름·번호로 검색)

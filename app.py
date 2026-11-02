@@ -8,7 +8,7 @@ import streamlit as st
 
 # 페이지 기본 설정
 st.set_page_config(
-    page_title="관세청 & 범정부 AI 해외직구 안전지킴이",
+    page_title="해외직구 안심체크 | 사기 전에 사진 한 장으로 확인",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -25,317 +25,186 @@ from services.safetykorea_api import safetykorea_api
 from services.ai_vision_service import ai_vision_service
 from services.rra_api import rra_api
 
-# 공공 포털 표준 커스텀 CSS 스타일링
-st.markdown("""
+import html as _html_lib
+
+
+def _t(value, default="-"):
+    """화면에 넣을 값을 안전하게 바꿉니다 (HTML 이스케이프 + 줄바꿈 처리)."""
+    if value is None or (isinstance(value, str) and not value.strip()):
+        value = default
+    return _html_lib.escape(str(value)).replace("\r\n", "\n").replace("\n", "<br>")
+
+
+def show_html(markup):
+    """들여쓰기·빈 줄 때문에 HTML이 코드 블록으로 보이는 문제를 막고 그대로 그립니다."""
+    lines = [ln.strip() for ln in markup.strip().splitlines()]
+    st.markdown("\n".join(ln for ln in lines if ln), unsafe_allow_html=True)
+
+
+# 친근한 공공서비스 디자인 (밝은 화면 · 큰 글씨 · 둥근 카드)
+show_html("""
 <style>
-    /* Google Fonts & Base Typography */
-    @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;700;800&display=swap');
-    
-    html, body, [class*="css"] {
-        font-family: 'Pretendard', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
-    }
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
 
-    /* 이미지 크기 자동 최적화 (세로 사진 과대 표시 방지) */
-    div[data-testid="stImage"] {
-        text-align: center;
-        display: flex;
-        justify-content: center;
-    }
-    div[data-testid="stImage"] img {
-        max-height: 360px !important;
-        width: auto !important;
-        object-fit: contain !important;
-        border-radius: 8px !important;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.15) !important;
-        margin: 0 auto !important;
-    }
+html, body, [class*="css"], .stApp, button, input, textarea, select {
+    font-family: 'Pretendard', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif !important;
+}
+.stApp { background: #F7F9FC; }
+.block-container { padding-top: 1.2rem !important; max-width: 1180px; }
+h1, h2, h3, h4 { letter-spacing: -0.4px; color: #111827; }
+p, li { font-size: 1rem; line-height: 1.65; }
 
-    /* 최상단 전자정부 공공 배너 */
-    .gov-top-strip {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 4px 6px;
-        border-bottom: 1px solid rgba(226, 232, 240, 0.15);
-        margin-bottom: 8px;
-    }
-    .gov-flag-icon {
-        font-size: 0.92rem;
-        display: inline-flex;
-        align-items: center;
-        font-weight: 700;
-        color: #60a5fa;
-        letter-spacing: -0.3px;
-    }
-    .gov-top-divider {
-        color: rgba(148, 163, 184, 0.4);
-        font-size: 0.8rem;
-    }
-    .gov-dept-names {
-        font-size: 0.78rem;
-        color: #94a3b8;
-        font-weight: 500;
-    }
+/* 사진 크기 맞춤 */
+div[data-testid="stImage"] { display: flex; justify-content: center; text-align: center; }
+div[data-testid="stImage"] img {
+    max-height: 360px !important; width: auto !important; object-fit: contain !important;
+    border-radius: 14px !important; box-shadow: 0 4px 14px rgba(15, 23, 42, 0.10) !important; margin: 0 auto !important;
+}
 
-    /* 우측 상단 모드 전환 래퍼 */
-    .top-mode-box {
-        text-align: right;
-        display: flex;
-        flex-direction: column;
-        align-items: flex-end;
-        justify-content: center;
-    }
-    .top-mode-label {
-        font-size: 0.72rem;
-        color: #94a3b8;
-        font-weight: 600;
-        margin-bottom: 2px;
-        letter-spacing: -0.2px;
-    }
+/* 버튼 */
+.stButton button, .stDownloadButton button {
+    border-radius: 12px !important; font-weight: 700 !important; min-height: 44px;
+}
+.stButton button[kind="primary"] {
+    background: #1B64DA !important; border: none !important; font-size: 1.05rem !important;
+    box-shadow: 0 6px 16px rgba(27, 100, 218, 0.25) !important;
+}
+.stButton button[kind="primary"]:hover { background: #1554BA !important; }
 
-    /* 공공 표준 메인 헤더 배너 */
-    .user-header-gov {
-        background: linear-gradient(135deg, #091e3a 0%, #0d3b66 50%, #1e3a8a 100%);
-        color: white;
-        padding: 24px 28px;
-        border-radius: 14px;
-        margin-bottom: 20px;
-        box-shadow: 0 4px 20px rgba(13, 59, 102, 0.25);
-        border: 1px solid rgba(59, 130, 246, 0.25);
-        position: relative;
-        overflow: hidden;
-    }
-    .user-header-gov::after {
-        content: "";
-        position: absolute;
-        top: -40px;
-        right: -40px;
-        width: 180px;
-        height: 180px;
-        background: radial-gradient(circle, rgba(56, 189, 248, 0.15) 0%, transparent 70%);
-        border-radius: 50%;
-        pointer-events: none;
-    }
-    .admin-header {
-        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-        color: white;
-        padding: 24px;
-        border-radius: 14px;
-        margin-bottom: 22px;
-        border-left: 6px solid #3b82f6;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-    }
+/* 탭 */
+.stTabs [data-baseweb="tab-list"] { gap: 6px; flex-wrap: wrap; }
+.stTabs [data-baseweb="tab"] {
+    background: #FFFFFF; border: 1px solid #E3E9F2; border-radius: 999px !important;
+    padding: 8px 16px !important; height: auto !important; font-weight: 600;
+}
+.stTabs [aria-selected="true"] { background: #1B64DA !important; color: #FFFFFF !important; border-color: #1B64DA !important; }
+.stTabs [data-baseweb="tab-highlight"], .stTabs [data-baseweb="tab-border"] { display: none; }
 
-    /* '이것으로 어떤 게 가능한가?' 비주얼 쇼케이스 카드 그리드 */
-    .gov-feature-showcase {
-        margin-bottom: 24px;
-    }
-    .showcase-header {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 12px;
-    }
-    .showcase-tag {
-        background: #1e3a8a;
-        color: #93c5fd;
-        font-size: 0.72rem;
-        font-weight: 700;
-        padding: 3px 8px;
-        border-radius: 6px;
-        letter-spacing: 0.5px;
-        text-transform: uppercase;
-        border: 1px solid rgba(147, 197, 253, 0.3);
-    }
-    .showcase-title {
-        font-size: 1.05rem;
-        font-weight: 700;
-        color: #f1f5f9;
-        margin: 0;
-    }
-    .feature-card-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 14px;
-    }
-    .feature-card {
-        background: rgba(30, 41, 59, 0.55);
-        border: 1px solid rgba(148, 163, 184, 0.2);
-        border-radius: 12px;
-        padding: 16px;
-        position: relative;
-        transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
-    }
-    .feature-card:hover {
-        border-color: rgba(56, 189, 248, 0.5);
-        box-shadow: 0 4px 12px rgba(14, 165, 233, 0.15);
-    }
-    .feature-card-top {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 10px;
-    }
-    .feature-icon-circle {
-        width: 36px;
-        height: 36px;
-        border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.15rem;
-    }
-    .feature-icon-circle.blue {
-        background: rgba(59, 130, 246, 0.15);
-        border: 1px solid rgba(59, 130, 246, 0.3);
-    }
-    .feature-icon-circle.amber {
-        background: rgba(245, 158, 11, 0.15);
-        border: 1px solid rgba(245, 158, 11, 0.3);
-    }
-    .feature-icon-circle.emerald {
-        background: rgba(16, 185, 129, 0.15);
-        border: 1px solid rgba(16, 185, 129, 0.3);
-    }
-    .feature-step-num {
-        font-size: 0.78rem;
-        font-weight: 800;
-        color: #64748b;
-    }
-    .feature-card-badge {
-        display: inline-block;
-        font-size: 0.72rem;
-        font-weight: 700;
-        padding: 2px 7px;
-        border-radius: 4px;
-        margin-bottom: 6px;
-    }
-    .feature-card-badge.blue {
-        background: rgba(59, 130, 246, 0.2);
-        color: #60a5fa;
-    }
-    .feature-card-badge.amber {
-        background: rgba(245, 158, 11, 0.2);
-        color: #fbbf24;
-    }
-    .feature-card-badge.emerald {
-        background: rgba(16, 185, 129, 0.2);
-        color: #34d399;
-    }
-    .feature-card h4 {
-        margin: 0 0 6px 0;
-        font-size: 0.96rem;
-        font-weight: 700;
-        color: #f8fafc;
-    }
-    .feature-card p {
-        margin: 0;
-        font-size: 0.82rem;
-        line-height: 1.5;
-        color: #94a3b8;
-    }
+/* 펼침 상자 · 파일 올리기 */
+div[data-testid="stExpander"] details {
+    background: #FFFFFF; border: 1px solid #E3E9F2 !important; border-radius: 14px !important;
+}
+div[data-testid="stFileUploader"] section {
+    background: #FFFFFF; border: 2px dashed #A9C4F5 !important; border-radius: 16px !important; padding: 22px !important;
+}
 
-    /* 메인 AI 사진 안심검사 강조 컨테이너 */
-    .main-hero-inspection {
-        background: linear-gradient(180deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.75) 100%);
-        border: 2px solid #3b82f6;
-        border-radius: 14px;
-        padding: 22px;
-        margin-bottom: 26px;
-        box-shadow: 0 6px 24px rgba(37, 99, 235, 0.18);
-        position: relative;
-    }
-    .main-hero-badge {
-        position: absolute;
-        top: -12px;
-        left: 20px;
-        background: linear-gradient(135deg, #2563eb, #1d4ed8);
-        color: white;
-        font-size: 0.75rem;
-        font-weight: 800;
-        padding: 3px 12px;
-        border-radius: 9999px;
-        letter-spacing: 0.3px;
-        box-shadow: 0 2px 8px rgba(37, 99, 235, 0.5);
-    }
-    .hero-title-wrap {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 14px;
-        padding-top: 4px;
-    }
+/* 맨 위 기관 안내 줄 */
+.gov-strip { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 0.86rem; color: #4B5563; padding: 6px 2px; }
+.gov-strip b { color: #1B64DA; }
 
-    /* 뱃지 스타일 */
-    .badge-danger {
-        background-color: #dc3545;
-        color: white;
-        padding: 4px 10px;
-        border-radius: 20px;
-        font-size: 0.85rem;
-        font-weight: bold;
-    }
-    .badge-warning {
-        background-color: #f59e0b;
-        color: #1e293b;
-        padding: 4px 10px;
-        border-radius: 20px;
-        font-size: 0.85rem;
-        font-weight: bold;
-    }
-    .badge-safe {
-        background-color: #10b981;
-        color: white;
-        padding: 4px 10px;
-        border-radius: 20px;
-        font-size: 0.85rem;
-        font-weight: bold;
-    }
-    .badge-info {
-        background-color: #3b82f6;
-        color: white;
-        padding: 4px 10px;
-        border-radius: 20px;
-        font-size: 0.85rem;
-        font-weight: bold;
-    }
-    .stat-card {
-        background: rgba(30, 41, 59, 0.6);
-        border: 1px solid rgba(148, 163, 184, 0.2);
-        border-radius: 10px;
-        padding: 16px;
-        text-align: center;
-    }
+/* 첫 화면 큰 안내판 */
+.hero {
+    background: linear-gradient(135deg, #1B64DA 0%, #3B82F6 60%, #60A5FA 100%);
+    color: #FFFFFF; border-radius: 24px; padding: 34px 36px; margin: 6px 0 26px 0;
+    box-shadow: 0 12px 30px rgba(27, 100, 218, 0.22); position: relative; overflow: hidden;
+}
+.hero::after {
+    content: "🛍️"; position: absolute; right: 28px; bottom: -14px; font-size: 7.5rem; opacity: 0.18; transform: rotate(-10deg);
+}
+.hero-tag { display: inline-block; background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.35);
+    padding: 4px 12px; border-radius: 999px; font-size: 0.85rem; font-weight: 600; margin-bottom: 14px; }
+.hero h1 { color: #FFFFFF !important; font-size: 2.2rem; font-weight: 800; margin: 0 0 10px 0; line-height: 1.3; }
+.hero p { color: #EAF2FF; font-size: 1.08rem; margin: 0 0 18px 0; max-width: 760px; }
+.hero-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.hero-chip { background: #FFFFFF; color: #1B64DA; font-weight: 700; font-size: 0.9rem; padding: 6px 14px; border-radius: 999px; }
 
-    /* 모바일 반응형 베이스 */
-    @media (max-width: 768px) {
-        .feature-card-grid {
-            grid-template-columns: 1fr;
-            gap: 10px;
-        }
-        div[data-testid="stImage"] img {
-            max-height: 280px !important;
-        }
-        .user-header-gov, .admin-header {
-            padding: 16px 14px !important;
-            margin-bottom: 14px !important;
-            border-radius: 10px !important;
-        }
-        .user-header-gov h1, .admin-header h1 {
-            font-size: 1.35rem !important;
-            line-height: 1.3 !important;
-        }
-        .user-header-gov p, .admin-header p {
-            font-size: 0.83rem !important;
-        }
-        .stButton button {
-            min-height: 48px !important;
-            font-size: 1rem !important;
-            font-weight: bold !important;
-        }
-    }
+/* 구역 제목 */
+.sec-title { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 8px 0 14px 0; }
+.sec-title h2 { font-size: 1.45rem; font-weight: 800; margin: 0; padding: 0; }
+.sec-title span { color: #6B7280; font-size: 0.98rem; }
+
+/* 4가지 주제 카드 */
+.topic-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 28px; }
+.topic-card {
+    background: #FFFFFF; border: 1px solid #E3E9F2; border-radius: 20px; padding: 22px 20px;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05); transition: transform .15s, box-shadow .15s;
+}
+.topic-card:hover { transform: translateY(-3px); box-shadow: 0 10px 24px rgba(15, 23, 42, 0.09); }
+.topic-icon { width: 54px; height: 54px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; margin-bottom: 14px; }
+.topic-card h3 { font-size: 1.15rem; font-weight: 800; margin: 0 0 4px 0; padding: 0; }
+.topic-q { font-size: 0.95rem; font-weight: 700; margin: 0 0 8px 0 !important; }
+.topic-card p.desc { font-size: 0.92rem; color: #4B5563; margin: 0; line-height: 1.6; }
+.c-blue  .topic-icon { background: #E8F0FE; } .c-blue  .topic-q { color: #1B64DA; }
+.c-pink  .topic-icon { background: #FDECF3; } .c-pink  .topic-q { color: #D6336C; }
+.c-green .topic-icon { background: #E6F6EE; } .c-green .topic-q { color: #128A4E; }
+.c-amber .topic-icon { background: #FFF4DE; } .c-amber .topic-q { color: #C2760A; }
+
+/* 이용 방법 3단계 */
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 30px; }
+.step { background: #FFFFFF; border: 1px solid #E3E9F2; border-radius: 18px; padding: 18px; display: flex; gap: 14px; align-items: center; }
+.step-num { flex: 0 0 auto; width: 44px; height: 44px; border-radius: 50%; background: #1B64DA; color: #FFFFFF;
+    font-weight: 800; font-size: 1.15rem; display: flex; align-items: center; justify-content: center; }
+.step b { display: block; font-size: 1.02rem; color: #111827; }
+.step small { color: #6B7280; font-size: 0.9rem; }
+
+/* 사진 확인 안내판 */
+.check-box { background: #FFFFFF; border: 2px solid #BFD4FA; border-radius: 22px; padding: 22px 24px; margin: 4px 0 18px 0; }
+.check-box h2 { font-size: 1.4rem; font-weight: 800; margin: 0 0 6px 0; padding: 0; }
+.check-box p { color: #4B5563; margin: 0; }
+.shot-tips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.shot-tip { background: #F1F6FF; color: #1E3A8A; border-radius: 10px; padding: 6px 12px; font-size: 0.9rem; font-weight: 600; }
+
+/* 결과 판정 카드 */
+.verdict { border-radius: 22px; padding: 24px 26px; margin: 10px 0 20px 0; display: flex; gap: 18px; align-items: flex-start; }
+.verdict-icon { font-size: 2.8rem; line-height: 1; }
+.verdict h2 { font-size: 1.55rem; font-weight: 800; margin: 0 0 6px 0; padding: 0; }
+.verdict p { margin: 0; font-size: 1.02rem; }
+.verdict.danger { background: #FFF1F1; border: 2px solid #F87171; } .verdict.danger h2 { color: #C62828; }
+.verdict.warn   { background: #FFF8E6; border: 2px solid #F6B93B; } .verdict.warn h2   { color: #A15C00; }
+.verdict.safe   { background: #ECFAF2; border: 2px solid #4ADE80; } .verdict.safe h2   { color: #13804A; }
+
+/* 정보 카드 */
+.info-card { background: #FFFFFF; border: 1px solid #E3E9F2; border-left: 6px solid #1B64DA; border-radius: 16px; padding: 18px 20px; margin-bottom: 14px; }
+.info-card.red { border-left-color: #EF4444; } .info-card.amber { border-left-color: #F59E0B; } .info-card.green { border-left-color: #22C55E; }
+.info-card h4 { margin: 0 0 10px 0; font-size: 1.12rem; font-weight: 800; padding: 0; }
+.info-row { font-size: 0.98rem; line-height: 1.75; color: #1F2937; }
+.info-row b { color: #374151; }
+.qa { background: #F7F9FC; border-radius: 12px; padding: 12px 14px; margin-top: 10px; }
+.qa-q { font-weight: 800; color: #111827; margin-top: 6px; }
+.qa-q:first-child { margin-top: 0; }
+.qa-a { color: #374151; font-size: 0.96rem; }
+
+/* 작은 표시 */
+.badge-danger, .badge-warning, .badge-safe, .badge-info {
+    display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 0.86rem; font-weight: 700;
+}
+.badge-danger { background: #FDE2E2; color: #B91C1C; }
+.badge-warning { background: #FEF0C7; color: #92400E; }
+.badge-safe { background: #DCF5E7; color: #166534; }
+.badge-info { background: #E0ECFF; color: #1E40AF; }
+.stat-card { background: #FFFFFF; border: 1px solid #E3E9F2; border-radius: 14px; padding: 16px; text-align: center; }
+
+/* 왼쪽 메뉴 */
+section[data-testid="stSidebar"] { background: #FFFFFF; border-right: 1px solid #E3E9F2; }
+.call-card { background: #F7F9FC; border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; }
+.call-card b { display: block; font-size: 0.92rem; color: #374151; }
+.call-card span { font-size: 1.15rem; font-weight: 800; color: #1B64DA; }
+
+/* 관리자 머리말 */
+.admin-header {
+    background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%); color: white; padding: 24px; border-radius: 16px;
+    margin-bottom: 22px; border-left: 6px solid #3B82F6; box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+}
+
+/* 휴대폰 화면 */
+@media (max-width: 900px) {
+    .topic-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 640px) {
+    .hero { padding: 24px 20px; border-radius: 18px; }
+    .hero h1 { font-size: 1.6rem; }
+    .hero p { font-size: 0.98rem; }
+    .hero::after { font-size: 5rem; }
+    .topic-grid { grid-template-columns: 1fr; gap: 10px; }
+    .steps { grid-template-columns: 1fr; }
+    .verdict { flex-direction: column; gap: 8px; padding: 18px; }
+    .verdict h2 { font-size: 1.3rem; }
+    div[data-testid="stImage"] img { max-height: 280px !important; }
+    .stButton button { min-height: 50px !important; font-size: 1rem !important; }
+}
 </style>
-""", unsafe_allow_html=True)
+""")
+
 
 # -------------------------------------------------------------
 # 세션 상태 초기화
@@ -350,25 +219,24 @@ if "inspection_history" not in st.session_state:
     st.session_state["inspection_history"] = []
 
 # -------------------------------------------------------------
-# 최상단 헤더: 공공 전자정부 안내 & 우측 상단 관리자 로그인 (단순/심플)
+# 맨 위 줄: 함께 만든 기관 안내 & 오른쪽 관리자 버튼
 # -------------------------------------------------------------
-top_col1, top_col2 = st.columns([3.8, 1.2])
+top_col1, top_col2 = st.columns([4.2, 1])
 
 with top_col1:
-    st.markdown("""
-    <div class="gov-top-strip">
-        <span class="gov-flag-icon">🇰🇷 대한민국 전자정부</span>
-        <span class="gov-top-divider">|</span>
-        <span class="gov-dept-names">관세청 · 식품의약품안전처 · 국가기술표준원 · 국립전파연구원 합동 공공 서비스</span>
+    show_html("""
+    <div class="gov-strip">
+        <span>🇰🇷</span>
+        <b>대한민국 정부 공공서비스</b>
+        <span>· 관세청 · 식품의약품안전처 · 국가기술표준원 · 국립전파연구원이 함께 운영해요</span>
     </div>
-    """, unsafe_allow_html=True)
+    """)
 
 with top_col2:
-    st.markdown('<div style="text-align: right; padding-top: 2px;">', unsafe_allow_html=True)
     if st.session_state["admin_view"]:
         btn_c1, btn_c2 = st.columns([1, 1])
         with btn_c1:
-            if st.button("👥 사용자 화면", key="top_btn_user_mode", use_container_width=True):
+            if st.button("🏠 첫 화면", key="top_btn_user_mode", use_container_width=True):
                 st.session_state["admin_view"] = False
                 st.rerun()
         with btn_c2:
@@ -379,169 +247,128 @@ with top_col2:
                     st.rerun()
     else:
         if st.session_state.get("admin_authenticated", False):
-            if st.button("⚙️ 관리자 콘솔", key="top_btn_admin_console", use_container_width=True):
+            if st.button("⚙️ 관리자 화면", key="top_btn_admin_console", use_container_width=True):
                 st.session_state["admin_view"] = True
                 st.rerun()
         else:
-            if st.button("🔒 관리자 로그인", key="top_btn_admin_login", use_container_width=True):
+            if st.button("🔒 관리자", key="top_btn_admin_login", use_container_width=True):
                 st.session_state["admin_view"] = True
                 st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
 
 is_admin_mode = st.session_state["admin_view"]
 
+
 # =============================================================
-# 1. 일반사용자(대국민) 조회 서비스
+# 1. 국민 누구나 쓰는 화면
 # =============================================================
 def render_user_service():
-    # 대국민용 사이드바 안내
+    # 왼쪽 메뉴: 이용 방법 & 신고·상담 전화
     with st.sidebar:
-        st.subheader("💡 이용 안내")
-        st.info("""
-        **안심 직구 3단계 검사법**
-        1. 구입할 제품의 라벨/박스 사진을 촬영하거나 업로드하세요.
-        2. AI가 유해성분, KC인증, 전파인증을 자동 판독합니다.
-        3. 실시간 정부 공인 DB 대조 결과를 확인하세요.
-        """)
-        
+        st.markdown("### 🙋 이렇게 이용하세요")
+        st.markdown(
+            "1. 사려는 물건의 **사진을 찍어요**\n"
+            "2. **[안전한지 확인하기]** 버튼을 눌러요\n"
+            "3. 들여와도 되는지, 써도 되는지 **결과를 봐요**"
+        )
+        st.caption("사진이 없다면 화면 아래 '직접 찾아보기'에서 제품 이름으로 찾을 수 있어요.")
         st.markdown("---")
-        st.subheader("📞 안전신고 및 상담처")
-        st.write("- **불량식품 신고**: 국번없이 1399")
-        st.write("- **제품안전정보센터 (KC)**: 1600-1384")
-        st.write("- **관세청 밀수신고**: 국번없이 125")
-        st.caption("관세청 × 식약처 × 국표원 × 국립전파연구원 합동")
+        st.markdown("### 📞 도움이 필요하면 전화하세요")
+        show_html("""
+        <div class="call-card"><b>불량식품·약 신고 (식약처)</b><span>1399</span></div>
+        <div class="call-card"><b>제품 안전 상담 (KC 인증)</b><span>1600-1384</span></div>
+        <div class="call-card"><b>밀수 신고 (관세청)</b><span>125</span></div>
+        """)
+        st.caption("국번 없이 걸면 돼요.")
 
-    # 공공 표준 대국민용 메인 헤더
-    st.markdown("""
-    <div class="user-header-gov">
-        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-            <span style="background: rgba(56, 189, 248, 0.2); color: #38bdf8; font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 9999px; border: 1px solid rgba(56, 189, 248, 0.4);">
-                K-CUSTOMS & GOV DIGITAL SERVICE
-            </span>
-            <span style="font-size: 0.8rem; color: #94a3b8;">관세청 × 식약처 × 국표원 × 국립전파연구원 합동</span>
+    # 첫 화면 큰 안내판
+    show_html("""
+    <div class="hero">
+        <div class="hero-tag">🛡️ 해외직구 안심체크</div>
+        <h1>해외에서 사기 전에,<br>사진 한 장으로 안심 체크!</h1>
+        <p>약·영양제부터 아이 장난감, 생활용품, 전기제품까지.
+        사진만 올리면 <b>우리나라에 들여와도 되는지</b>, <b>써도 안전한지</b> 정부 자료로 바로 알려드려요.</p>
+        <div class="hero-chips">
+            <span class="hero-chip">✔ 무료</span>
+            <span class="hero-chip">✔ 회원가입 없이</span>
+            <span class="hero-chip">✔ 영어 몰라도 OK</span>
         </div>
-        <h1 style="color: white; margin: 0 0 10px 0; font-size: 1.85rem; font-weight: 800; letter-spacing: -0.5px;">
-            🛡️ 해외직구 안전지킴이 - 대국민 안심 통관·안전 진단 포털
-        </h1>
-        <p style="color: #cbd5e1; margin: 0; font-size: 0.95rem; line-height: 1.6;">
-            해외직구 결제 전, <strong>제품 사진 한 장</strong>으로 식품위해물품·불법의약품 차단 여부와 
-            국가기술표준원 KC안전인증 및 국립전파연구원 전자파 적합성을 실시간 1:1 교차 검증하세요.
-        </p>
     </div>
-    """, unsafe_allow_html=True)
+    """)
 
-    # 💡 "이것으로 어떤 게 가능한가?" 가시적 비주얼 쇼케이스 (3대 핵심 혜택)
-    st.markdown("""
-    <div style="display: flex; align-items: center; gap: 8px; margin: 20px 0 12px 0;">
-        <span style="background: #1e3a8a; color: #93c5fd; font-size: 0.72rem; font-weight: 700; padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(147, 197, 253, 0.3);">
-            SERVICE GUIDE
-        </span>
-        <h3 style="font-size: 1.05rem; font-weight: 700; color: #f1f5f9; margin: 0;">
-            💡 안전지킴이로 사전에 예방하고 확인할 수 있는 3대 핵심 안심 기능
-        </h3>
-    </div>
-    """, unsafe_allow_html=True)
-
-    col_val1, col_val2, col_val3 = st.columns(3)
-
-    with col_val1:
-        st.markdown("""
-<div style="background: rgba(30, 41, 59, 0.65); border: 1px solid rgba(148, 163, 184, 0.25); border-radius: 12px; padding: 18px; min-height: 220px;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-        <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
-            📷
+    # 무엇을 확인할 수 있나요? (4가지 주제)
+    show_html("""
+    <div class="sec-title"><h2>무엇을 확인할 수 있나요?</h2><span>이런 물건을 사기 전에 꼭 확인해 보세요</span></div>
+    <div class="topic-grid">
+        <div class="topic-card c-blue">
+            <div class="topic-icon">💊</div>
+            <h3>해외 약·영양제</h3>
+            <p class="topic-q">먹어도 괜찮은 약일까요?</p>
+            <p class="desc">우리나라에 들여올 수 없는 성분이 들었는지, 의사 처방전이 필요한 약인지 알려드려요.</p>
         </div>
-        <span style="font-size: 0.75rem; font-weight: 800; color: #94a3b8;">STEP 01</span>
-    </div>
-    <span style="display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 4px; background: rgba(59, 130, 246, 0.2); color: #60a5fa; margin-bottom: 8px;">
-        원클릭 AI 자동인식
-    </span>
-    <h4 style="margin: 0 0 8px 0; font-size: 1rem; font-weight: 700; color: #f8fafc;">영문 성분·모델명 몰라도 OK</h4>
-    <p style="margin: 0; font-size: 0.84rem; line-height: 1.55; color: #94a3b8;">
-        영문 라벨, 복잡한 화학성분표(Supplement Facts), 바코드를 직접 타이핑할 필요 없이 사진 1장으로 AI가 위험 요소를 즉시 자동 추출합니다.
-    </p>
-</div>
-""", unsafe_allow_html=True)
-
-    with col_val2:
-        st.markdown("""
-<div style="background: rgba(30, 41, 59, 0.65); border: 1px solid rgba(148, 163, 184, 0.25); border-radius: 12px; padding: 18px; min-height: 220px;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-        <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(245, 158, 11, 0.2); border: 1px solid rgba(245, 158, 11, 0.4); display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
-            🚫
+        <div class="topic-card c-pink">
+            <div class="topic-icon">🧸</div>
+            <h3>어린이 제품</h3>
+            <p class="topic-q">우리 아이가 써도 될까요?</p>
+            <p class="desc">장난감·유아용품에서 몸에 해로운 물질이 나와 회수(리콜)된 적이 있는지 확인해요.</p>
         </div>
-        <span style="font-size: 0.75rem; font-weight: 800; color: #94a3b8;">STEP 02</span>
-    </div>
-    <span style="display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 4px; background: rgba(245, 158, 11, 0.2); color: #fbbf24; margin-bottom: 8px;">
-        폐기비용·통관보류 방지
-    </span>
-    <h4 style="margin: 0 0 8px 0; font-size: 1rem; font-weight: 700; color: #f8fafc;">통관 폐기 수수료 원천 차단</h4>
-    <p style="margin: 0; font-size: 0.84rem; line-height: 1.55; color: #94a3b8;">
-        구매 결제 전 유해 의약품(멜라토닌·요힘빈 등) 및 건기식 6병 수량기준 초과 여부를 사전에 파악하여 수만원대 폐기 수수료와 물품 몰수를 예방합니다.
-    </p>
-</div>
-""", unsafe_allow_html=True)
-
-    with col_val3:
-        st.markdown("""
-<div style="background: rgba(30, 41, 59, 0.65); border: 1px solid rgba(148, 163, 184, 0.25); border-radius: 12px; padding: 18px; min-height: 220px;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-        <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.4); display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
-            🛡️
+        <div class="topic-card c-green">
+            <div class="topic-icon">🧴</div>
+            <h3>생활용품</h3>
+            <p class="topic-q">매일 쓰는 물건, 안전할까요?</p>
+            <p class="desc">가방·주방용품·생활화학제품 등이 안전 인증을 받았는지, 문제가 된 적은 없는지 찾아봐요.</p>
         </div>
-        <span style="font-size: 0.75rem; font-weight: 800; color: #94a3b8;">STEP 03</span>
+        <div class="topic-card c-amber">
+            <div class="topic-icon">🔌</div>
+            <h3>전기용품</h3>
+            <p class="topic-q">불나거나 감전될 걱정은요?</p>
+            <p class="desc">충전기·보조배터리·드라이어 등이 KC 안전인증과 전파인증을 제대로 받았는지 확인해요.</p>
+        </div>
     </div>
-    <span style="display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 4px; background: rgba(16, 185, 129, 0.2); color: #34d399; margin-bottom: 8px;">
-        범정부 4대 DB 연계
-    </span>
-    <h4 style="margin: 0 0 8px 0; font-size: 1rem; font-weight: 700; color: #f8fafc;">정부 공인 안전DB 1:1 대조</h4>
-    <p style="margin: 0; font-size: 0.84rem; line-height: 1.55; color: #94a3b8;">
-        식약처(위해식품 5,055건) + 국표원(KC인증·유통리콜·해외직구 부적합) + 전파연구원(전자파적합성) 공식 전산망을 실시간 교차 검증합니다.
-    </p>
-</div>
-""", unsafe_allow_html=True)
+    """)
 
-    st.markdown("<div style='margin-bottom: 24px;'></div>", unsafe_allow_html=True)
+    # 이용 방법 3단계
+    show_html("""
+    <div class="sec-title"><h2>이용 방법은 딱 3단계</h2></div>
+    <div class="steps">
+        <div class="step"><div class="step-num">1</div><div><b>📷 사진 찍기</b><small>제품 앞·뒤·옆면을 찍어 올려요</small></div></div>
+        <div class="step"><div class="step-num">2</div><div><b>🔍 자동으로 확인</b><small>AI가 글자를 읽고 정부 자료와 비교해요</small></div></div>
+        <div class="step"><div class="step-num">3</div><div><b>✅ 결과 보기</b><small>사도 되는지, 조심할 점은 뭔지 알려드려요</small></div></div>
+    </div>
+    """)
 
     # =============================================================
-    # [핵심 메인 기능] AI 사진 안심 검사 진단 데스크 (센터 스테이지)
+    # 사진으로 바로 확인하기 (핵심 기능)
     # =============================================================
-    st.markdown("""
-    <div style="background: linear-gradient(135deg, rgba(30, 58, 138, 0.3) 0%, rgba(15, 23, 42, 0.7) 100%); border: 2px solid #3b82f6; border-radius: 14px; padding: 18px 20px; margin-bottom: 20px; box-shadow: 0 4px 18px rgba(59, 130, 246, 0.15);">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <span style="background: #2563eb; color: white; font-size: 0.75rem; font-weight: 800; padding: 3px 10px; border-radius: 6px;">핵심 메인 기능</span>
-                <h2 style="margin: 0; color: #f8fafc; font-size: 1.35rem; font-weight: 800;">
-                    📸 AI 사진 원클릭 안심 진단 데스크
-                </h2>
-            </div>
-            <span style="font-size: 0.8rem; color: #60a5fa; font-weight: 600;">
-                <i class="fa-solid fa-bolt"></i> Google Gemini Multimodal Vision AI 탑재
-            </span>
+    show_html("""
+    <div class="check-box">
+        <h2>📷 사진으로 바로 확인하기</h2>
+        <p>여러 장을 올릴수록 더 정확해요. 글자가 잘 보이게 가까이에서 찍어 주세요.</p>
+        <div class="shot-tips">
+            <span class="shot-tip">앞면 · 제품 이름</span>
+            <span class="shot-tip">뒷면 · 성분표</span>
+            <span class="shot-tip">옆면 · 바코드</span>
+            <span class="shot-tip">KC 마크 · 인증번호</span>
         </div>
-        <p style="color: #cbd5e1; font-size: 0.88rem; margin: 8px 0 0 0;">
-            의심 제품의 <strong>전면(제품명), 후면(원재료/성분표), 측면(바코드, KC/전파인증마크)</strong> 사진을 등록하시면 AI가 즉시 정부 차단 DB와 1:1 정밀 대조합니다.
-        </p>
     </div>
-    """, unsafe_allow_html=True)
+    """)
 
     with st.container():
 
-        # 1️⃣ 사진 등록 영역 (상단)
-        st.subheader("1️⃣ 사진 등록 및 촬영 (다중 선택 가능)")
+        # ① 사진 올리기
+        st.markdown("#### ① 제품 사진 올리기")
         uploaded_files = st.file_uploader(
-            "제품 사진 파일 선택 (여러 장 등록 가능)",
+            "사진 파일을 고르거나 여기로 끌어다 놓으세요 (여러 장 가능)",
             type=["jpg", "jpeg", "png", "webp"],
             accept_multiple_files=True,
             key="user_upload_files"
         )
-        
-        with st.expander("📷 스마트폰 카메라로 직접 촬영하기"):
-            cam_pic = st.camera_input("카메라 촬영", key="user_cam")
+
+        with st.expander("📱 휴대폰 카메라로 바로 찍기"):
+            cam_pic = st.camera_input("카메라로 찍기", key="user_cam")
             if cam_pic:
-                if st.button("촬영한 사진 목록에 추가", key="user_add_cam"):
+                if st.button("찍은 사진 추가하기", key="user_add_cam"):
                     st.session_state["camera_photos"].append(cam_pic.getvalue())
-                    st.success(f"촬영 사진 {len(st.session_state['camera_photos'])}장 추가됨!")
+                    st.success(f"사진을 추가했어요! (지금까지 {len(st.session_state['camera_photos'])}장)")
 
         total_images_bytes = []
         if uploaded_files:
@@ -551,36 +378,36 @@ def render_user_service():
             total_images_bytes.extend(st.session_state["camera_photos"])
 
         if total_images_bytes:
-            st.write(f"**현재 등록된 사진: 총 {len(total_images_bytes)}장**")
+            st.write(f"**올린 사진: {len(total_images_bytes)}장**")
             if len(total_images_bytes) == 1:
                 p_c1, p_c2, p_c3 = st.columns([1, 2, 1])
                 with p_c2:
-                    st.image(total_images_bytes[0], caption="등록된 제품 사진 #1", width=220)
+                    st.image(total_images_bytes[0], caption="올린 사진", width=220)
             else:
                 img_cols = st.columns(min(len(total_images_bytes), 4))
                 for i, b_data in enumerate(total_images_bytes):
                     with img_cols[i % len(img_cols)]:
-                        st.image(b_data, caption=f"사진 #{i+1}", width=180)
-            
-            if st.button("등록된 사진 초기화", key="user_reset_imgs"):
+                        st.image(b_data, caption=f"사진 {i+1}", width=180)
+
+            if st.button("🗑️ 올린 사진 모두 지우기", key="user_reset_imgs"):
                 st.session_state["camera_photos"] = []
                 st.rerun()
 
         st.markdown("")
-        run_inspect = st.button("🚀 AI 안심 진단 시작하기", type="primary", use_container_width=True, key="user_inspect_btn")
+        run_inspect = st.button("🔍 안전한지 확인하기", type="primary", use_container_width=True, key="user_inspect_btn")
         st.markdown("---")
 
-        # 2️⃣ 안심 진단 결과 (하단 - 사진 등록 아래로)
-        st.subheader("2️⃣ 안심 진단 결과")
+        # ② 확인 결과
+        st.markdown("#### ② 확인 결과")
         if run_inspect:
                 if not total_images_bytes:
-                    st.warning("먼저 검사할 사진을 등록하거나 촬영해 주세요.")
+                    st.warning("먼저 확인할 제품 사진을 올리거나 찍어 주세요.")
                 else:
-                    with st.spinner("AI가 제품명, 성분, KC안전인증, 전파인증을 종합 분석 중입니다..."):
+                    with st.spinner("사진 속 제품 이름과 성분을 읽고 정부 자료와 비교하고 있어요. 잠시만 기다려 주세요..."):
                         start_t = time.time()
                         ocr_result = ai_vision_service.extract_labels_multi(total_images_bytes)
                         if ocr_result.get("error") and not ocr_result.get("product_name"):
-                            st.warning(f"⚠️ AI 라벨 인식 안내: {ocr_result.get('error')}")
+                            st.warning(f"⚠️ 사진 속 글자를 잘 읽지 못했어요. 더 밝고 가까이에서 다시 찍어 보세요. ({ocr_result.get('error')})")
 
                         match_result = db_service.match_product(ocr_result)
 
@@ -588,7 +415,7 @@ def render_user_service():
                         b_code = ocr_result.get("barcode") or ""
                         kc_num = ocr_result.get("kc_cert_num")
                         rra_nums = ocr_result.get("rra_cert_nums") or []
-                        
+
                         safety_res = safetykorea_api.comprehensive_check(
                             product_name=p_name,
                             barcode=b_code,
@@ -614,59 +441,84 @@ def render_user_service():
                         citizen_summary = match_result.get("citizen_summary") or {}
                         is_blocked = match_result.get("matched", False)
                         has_safety_danger = safety_res.get("has_danger", False)
-                        
+
                         db_rec = match_result.get("record") or {}
                         match_stage = match_result.get("match_stage", "")
-                        
-                        # 안전한 필드 바인딩 (빈 값 '-' 방지)
-                        matched_product_name = db_rec.get("제품명") or p_name or "식품안전나라 차단 의심 품목"
+
+                        # 빈 값 대신 보여줄 기본 문구
+                        matched_product_name = db_rec.get("제품명") or p_name or "차단 목록에 있는 것으로 보이는 제품"
                         matched_harmful_ingr = (
-                            db_rec.get("성분명") 
+                            db_rec.get("성분명")
                             or match_result.get("db_harmful_ingredient")
                             or ", ".join(ocr_result.get("harmful_suspects", []))
-                            or "해외 의약품 주의 성분 (처방전 필요)"
+                            or "처방전이 필요한 해외 약 성분"
                         )
                         matched_reason = (
-                            db_rec.get("회수사유") 
-                            or citizen_summary.get("why_prohibited") 
-                            or match_result.get("db_reason") 
+                            db_rec.get("회수사유")
+                            or citizen_summary.get("why_prohibited")
+                            or match_result.get("db_reason")
                             or ocr_result.get("why_prohibited_reason")
-                            or "국내 반입 제한 또는 인체 위해 우려 성분 함유"
+                            or "들여오는 것이 제한되거나 몸에 해로울 수 있는 성분이 들어 있어요."
                         )
-                        matched_maker = db_rec.get("제조사") or ocr_result.get("brand") or "해외 제조사"
-                        matched_country = db_rec.get("제조국") or "해외 수입"
-                        matched_source = db_rec.get("정보출처") or "식품안전나라 공식 Open API (I2715) 및 관세청 AI 안전 판정"
+                        matched_maker = db_rec.get("제조사") or ocr_result.get("brand") or "해외 회사"
+                        matched_country = db_rec.get("제조국") or "해외"
+                        matched_source = db_rec.get("정보출처") or "식품안전나라(식약처) 공공데이터 · 관세청 AI 판정"
 
                         # -------------------------------------------------------------
-                        # 1. 상단 종합 판정 배너
+                        # 1. 한눈에 보는 결과
                         # -------------------------------------------------------------
                         if has_safety_danger or food_status == "DANGER":
-                            st.error("### 🚨 [반입 금지 / 폐기 대상] 정부 위해물품 차단 또는 유통 리콜 명령 대상입니다!")
+                            show_html("""
+                            <div class="verdict danger">
+                                <div class="verdict-icon">🚫</div>
+                                <div>
+                                    <h2>사지 마세요! 위험한 제품이에요</h2>
+                                    <p>정부가 막아 둔 성분이 들어 있거나, 회수(리콜) 명령을 받은 제품이에요.
+                                    이미 주문했다면 취소하는 것이 좋아요. 그대로 들어오면 세관에서 폐기될 수 있어요.</p>
+                                </div>
+                            </div>
+                            """)
                         elif food_status == "WARNING":
-                            st.warning("### ⚠️ [반입 주의 / 확인 필요] 해외 직구 의약품으로 처방전 필요 또는 반입 수량 제한 대상입니다!")
+                            show_html("""
+                            <div class="verdict warn">
+                                <div class="verdict-icon">⚠️</div>
+                                <div>
+                                    <h2>잠깐! 꼭 확인이 필요해요</h2>
+                                    <p>의사 처방전이 있어야 하거나, 들여올 수 있는 양이 정해져 있는 제품이에요.
+                                    아래 안내를 읽고 구매를 결정해 주세요.</p>
+                                </div>
+                            </div>
+                            """)
                         else:
-                            st.success("### ✅ [정상 / 차단 미등록] 정부 위해물품 차단 데이터베이스에 등재되지 않은 정상 품목입니다.")
+                            show_html("""
+                            <div class="verdict safe">
+                                <div class="verdict-icon">✅</div>
+                                <div>
+                                    <h2>위험 제품 목록에서 찾지 못했어요</h2>
+                                    <p>정부의 위험 제품·리콜 목록에 올라 있지 않아요.
+                                    그래도 사용 전에 설명서와 주의사항은 꼭 읽어 주세요.</p>
+                                </div>
+                            </div>
+                            """)
 
                         # -------------------------------------------------------------
-                        # 2. 📋 1:1 비교 대조 사진 영역 (현품 사진 vs 정부 DB 공식 등록 사진)
+                        # 2. 내 사진 vs 정부에 등록된 사진
                         # -------------------------------------------------------------
-                        st.markdown("### 📋 1:1 비교 대조 판정 결과")
+                        st.markdown("### 📋 내 사진과 정부 등록 사진 비교")
 
                         col_left, col_right = st.columns(2)
                         with col_left:
-                            st.markdown("#### 📷 현품 검사 사진")
-                            st.caption("촬영/업로드된 실제 검사물품")
+                            st.markdown("#### 📷 내가 올린 사진")
                             if len(total_images_bytes) == 1:
-                                st.image(total_images_bytes[0], caption="촬영/업로드된 실제 검사물품", width=280)
+                                st.image(total_images_bytes[0], caption="내가 올린 사진", width=280)
                             else:
-                                img_tabs = st.tabs([f"사진 #{i+1}" for i in range(len(total_images_bytes))])
+                                img_tabs = st.tabs([f"사진 {i+1}" for i in range(len(total_images_bytes))])
                                 for i, i_tab in enumerate(img_tabs):
                                     with i_tab:
-                                        st.image(total_images_bytes[i], caption=f"실제 검사물품 #{i+1}", width=280)
+                                        st.image(total_images_bytes[i], caption=f"내가 올린 사진 {i+1}", width=280)
 
                         with col_right:
-                            st.markdown("#### 🏛️ 관세청·정부 DB 공식 등록 원본 사진")
-                            st.caption("식품안전나라 / 국표원 공식 제공 이미지")
+                            st.markdown("#### 🏛️ 정부에 등록된 사진")
 
                             # 1) 식약처 위해식품/의약품 차단 DB 사진 확인
                             db_remote_url = match_result.get("db_remote_image_url") or db_rec.get("원본이미지URL")
@@ -692,123 +544,112 @@ def render_user_service():
                                     if rf.get("imageUrl"):
                                         recall_images.append(rf.get("imageUrl"))
 
-                            # 렌더링
                             rendered_db_img = False
                             if is_blocked and (local_img_path or db_remote_url):
                                 target_img = local_img_path if local_img_path else db_remote_url
-                                st.image(target_img, caption="식품안전나라 공식 제공 차단 제품 원본 사진", width=280)
+                                st.image(target_img, caption="식약처가 막아 둔 제품 사진", width=280)
                                 rendered_db_img = True
                             elif recall_images:
-                                st.image(recall_images[0], caption="국가기술표준원 리콜 처분 공고 원본 사진", width=280)
+                                st.image(recall_images[0], caption="리콜(회수) 제품 사진", width=280)
                                 rendered_db_img = True
                             elif kc_images:
-                                st.image(kc_images[0], caption="국가기술표준원 KC 공식 인증 등록 사진", width=280)
+                                st.image(kc_images[0], caption="KC 안전인증 등록 사진", width=280)
                                 rendered_db_img = True
 
                             if not rendered_db_img:
                                 if is_blocked and db_rec:
-                                    st.info("⚠️ 식품안전나라 차단 데이터에 등록 번호는 있으나, 공표용 사진 이미지가 등록되지 않은 품목입니다.")
+                                    st.info("차단 목록에는 있지만, 정부가 공개한 사진은 없는 제품이에요.")
                                 elif is_blocked and not db_rec:
-                                    st.info("ℹ️ 본 제품은 해외 직구 일반/전문의약품으로 AI가 성분 및 약사법 통관 기준을 판정한 건입니다. (식품안전나라 차단식품 직접 등재 품목이 아니므로 공식 이미지 없음)")
+                                    st.info("해외 약의 성분을 보고 AI가 판단한 결과예요. 그래서 비교할 정부 등록 사진은 없어요.")
                                 else:
-                                    st.info("ℹ️ 위해식품 차단 데이터베이스에 미등재된 정상 품목이므로 차단 등록 사진이 없습니다.")
+                                    st.info("위험 제품 목록에 없는 제품이라 비교할 사진이 없어요.")
 
                         # -------------------------------------------------------------
-                        # 3. 🔍 세부 대조 내역 (AI 라벨 추출 정보 vs 정부 DB)
+                        # 3. 자세히 보기
                         # -------------------------------------------------------------
-                        with st.expander("🔍 세부 대조 내역 (1:1 상세 정보 대조)", expanded=True):
+                        with st.expander("🔍 자세히 보기 (사진에서 읽은 내용 · 비교 결과)", expanded=True):
                             col_d1, col_d2 = st.columns(2)
                             with col_d1:
-                                st.markdown("**[AI 라벨 추출 정보]**")
-                                st.write(f"- **제품명**: {p_name or '-'}")
-                                st.write(f"- **제조사/브랜드**: {ocr_result.get('brand') or '-'}")
+                                st.markdown("**📷 사진에서 읽은 내용**")
+                                st.write(f"- **제품 이름**: {p_name or '-'}")
+                                st.write(f"- **만든 회사(브랜드)**: {ocr_result.get('brand') or '-'}")
                                 st.write(f"- **바코드**: {b_code or '-'}")
                                 ings = ocr_result.get('ingredients', [])
-                                st.write(f"- **추출된 성분 수**: {len(ings)} 개")
+                                st.write(f"- **찾은 성분**: {len(ings)}개")
                                 if ings:
                                     st.caption(f"성분: {', '.join(ings[:15])}")
                             with col_d2:
-                                st.markdown("**[DB 매칭 판정 정보]**")
+                                st.markdown("**🏛️ 정부 자료와 비교한 결과**")
                                 if is_blocked:
-                                    st.write(f"- **등록 제품명**: {matched_product_name}")
-                                    st.write(f"- **검출 위해성분**: <span class='badge-danger'>{matched_harmful_ingr}</span>", unsafe_allow_html=True)
-                                    st.write(f"- **반입금지 사유**: {matched_reason}")
-                                    st.write(f"- **판정 단계**: {match_stage or '정부 차단 기준 일치'}")
-                                    st.write(f"- **정보 출처**: {matched_source}")
+                                    st.write(f"- **등록된 제품 이름**: {matched_product_name}")
+                                    st.write(f"- **문제가 된 성분**: <span class='badge-danger'>{_t(matched_harmful_ingr)}</span>", unsafe_allow_html=True)
+                                    st.write(f"- **안 되는 이유**: {matched_reason}")
+                                    st.write(f"- **판단 근거**: {match_stage or '정부 차단 기준과 일치'}")
+                                    st.write(f"- **자료 출처**: {matched_source}")
                                 elif safety_res.get("has_danger"):
-                                    st.write(f"- **적발 유형**: 국표원 유통제품 안전성조사 리콜 적발")
-                                    st.write(f"- **관련 인증번호**: `{kc_num or '-'}`")
+                                    st.write("- **확인 내용**: 정부 안전 검사에서 리콜(회수) 명령을 받은 제품")
+                                    st.write(f"- **KC 인증번호**: `{kc_num or '-'}`")
                                 else:
-                                    st.write("- **판정 결과**: 위해식품 차단 데이터베이스에 등재되지 않은 정상 품목입니다.")
+                                    st.write("- **결과**: 위험 제품 목록에 없는 제품이에요.")
 
                         st.markdown("---")
 
                         # -------------------------------------------------------------
-                        # 4. 식약처 위해식품 차단 및 의약품 통관 주의 카드
+                        # 4. 약·영양제: 들여올 수 없는 / 주의가 필요한 제품 안내
                         # -------------------------------------------------------------
                         if is_blocked:
-                            card_border = "#dc3545" if food_status == "DANGER" else "#f59e0b"
-                            card_bg = "rgba(220, 53, 69, 0.15)" if food_status == "DANGER" else "rgba(245, 158, 11, 0.15)"
-                            card_title = "🚫 [식약처] 해외직구 차단식품·위해원료 등재 확인" if food_status == "DANGER" else "⚠️ [관세청·식약처] 해외 직구 의약품 통관 주의 안내"
-                            card_title_color = "#ff6b6b" if food_status == "DANGER" else "#fbbf24"
-                            badge_cls = "badge-danger" if food_status == "DANGER" else "badge-warning"
-                            
-                            health_risk = citizen_summary.get("health_risks") or ocr_result.get("health_risks") or "복용 시 건강 피해 또는 부작용 우려가 있습니다."
-                            action_guide = citizen_summary.get("action_guide") or ocr_result.get("customs_advice") or "세관 통관 전 반품하거나 처방전을 구비하세요."
+                            is_danger = food_status == "DANGER"
+                            card_cls = "red" if is_danger else "amber"
+                            card_title = "🚫 식약처가 들여오지 못하게 막아 둔 제품이에요" if is_danger else "⚠️ 처방전이 필요하거나 들여올 수 있는 양이 정해진 약이에요"
+                            badge_cls = "badge-danger" if is_danger else "badge-warning"
 
-                            st.markdown(f"""
-                            <div style="background: {card_bg}; border: 2px solid {card_border}; border-radius: 10px; padding: 18px; margin-bottom: 14px;">
-                                <h4 style="margin: 0 0 10px 0; color: {card_title_color};">{card_title}</h4>
-                                <div style="font-size: 0.95rem; line-height: 1.7;">
-                                    <div><strong>🏷️ 대상 제품명</strong>: {matched_product_name}</div>
-                                    <div><strong>🧪 주의/검출 성분</strong>: <span class="{badge_cls}">{matched_harmful_ingr}</span></div>
-                                    <div><strong>🏢 제조사 / 제조국</strong>: {matched_maker} / {matched_country}</div>
-                                    <div style="margin-top: 10px; background: rgba(0,0,0,0.25); padding: 12px; border-radius: 8px;">
-                                        <div style="color: #fca5a5; font-weight: bold;">🛑 반입 제한 / 차단 사유:</div>
-                                        <div style="font-size: 0.9rem; margin-bottom: 6px;">{matched_reason}</div>
-                                        <div style="color: #fca5a5; font-weight: bold;">🩺 건강상 위험성 / 부작용:</div>
-                                        <div style="font-size: 0.9rem; margin-bottom: 6px;">{health_risk}</div>
-                                        <div style="color: #6ee7b7; font-weight: bold;">📋 관세청 통관 가이드 및 조치 사항:</div>
-                                        <div style="font-size: 0.9rem;">{action_guide}</div>
-                                    </div>
+                            health_risk = citizen_summary.get("health_risks") or ocr_result.get("health_risks") or "먹거나 사용하면 건강에 해롭거나 부작용이 생길 수 있어요."
+                            action_guide = citizen_summary.get("action_guide") or ocr_result.get("customs_advice") or "배송 전이라면 주문을 취소하고, 꼭 필요한 약이라면 의사 처방전을 준비하세요."
+
+                            show_html(f"""
+                            <div class="info-card {card_cls}">
+                                <h4>{card_title}</h4>
+                                <div class="info-row"><b>제품 이름</b> · {_t(matched_product_name)}</div>
+                                <div class="info-row"><b>문제 성분</b> · <span class="{badge_cls}">{_t(matched_harmful_ingr)}</span></div>
+                                <div class="info-row"><b>만든 곳</b> · {_t(matched_maker)} / {_t(matched_country)}</div>
+                                <div class="qa">
+                                    <div class="qa-q">❓ 왜 안 되나요?</div>
+                                    <div class="qa-a">{_t(matched_reason)}</div>
+                                    <div class="qa-q">🩺 몸에 어떤 영향이 있나요?</div>
+                                    <div class="qa-a">{_t(health_risk)}</div>
+                                    <div class="qa-q">👉 어떻게 하면 되나요?</div>
+                                    <div class="qa-a">{_t(action_guide)}</div>
                                 </div>
                             </div>
-                            """, unsafe_allow_html=True)
+                            """)
 
-                        # 2. 국가기술표준원 국내 리콜 적발 카드
+                        # 리콜(회수) 명령 제품 안내
                         dom_recalls = safety_res.get("domestic_recalls", [])
                         if dom_recalls:
                             for dr in dom_recalls:
                                 r_uid = dr.get("recallUid")
                                 r_board_url = dr.get("source_url") or f"https://www.safetykorea.kr/recall/ajax/recallBoard?recallUid={r_uid}"
-                                
-                                st.markdown(f"""
-                                <div style="background: rgba(220, 53, 69, 0.15); border: 2px solid #ef4444; border-radius: 10px; padding: 18px; margin-bottom: 14px;">
-                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                                        <h4 style="margin: 0; color: #ef4444;">🚨 [국표원] 유통제품 안전성 조사 리콜 명령 적발!</h4>
-                                        <span class="badge-danger">{dr.get('recallTypeName', '명령에 따른 리콜')}</span>
-                                    </div>
-                                    <div style="font-size: 0.95rem; line-height: 1.6;">
-                                        <div><strong>🏷️ 리콜 대상 제품명(모델명)</strong>: {dr.get('recallProductName', '-')} ({dr.get('recallModelName', '-')})</div>
-                                        <div><strong>📋 KC인증번호</strong>: <code>{dr.get('certNum', '-')}</code></div>
-                                        <div><strong>🏢 사업자(수입/제조사)</strong>: {dr.get('recallCmpnyName', '-')} (문의: {dr.get('recallInqryTel', '-')})</div>
-                                        <div><strong>📅 공표일자</strong>: {dr.get('publishDate', '-')} | <strong>제조국</strong>: {dr.get('makingCntryName', '-')}</div>
-                                        <div style="margin-top: 10px; background: rgba(0,0,0,0.25); padding: 12px; border-radius: 8px;">
-                                            <div style="color: #fca5a5; font-weight: bold;">⚠️ 적발된 결함 및 유해물질:</div>
-                                            <div style="white-space: pre-wrap; font-size: 0.9rem; margin-bottom: 6px;">{dr.get('harmDscr', '-')}</div>
-                                            <div style="color: #fca5a5; font-weight: bold;">🩺 인체 위해성 / 사고 우려:</div>
-                                            <div style="white-space: pre-wrap; font-size: 0.9rem; margin-bottom: 6px;">{dr.get('accidentCaseDscr', '-')}</div>
-                                            <div style="color: #6ee7b7; font-weight: bold;">🛑 소비자 조치 사항:</div>
-                                            <div style="white-space: pre-wrap; font-size: 0.9rem;">{dr.get('publishActionDscr', '-')}</div>
-                                        </div>
+
+                                show_html(f"""
+                                <div class="info-card red">
+                                    <h4>🚨 회수(리콜) 명령을 받은 제품이에요 <span class="badge-danger">{_t(dr.get('recallTypeName'), '리콜')}</span></h4>
+                                    <div class="info-row"><b>제품 이름(모델)</b> · {_t(dr.get('recallProductName'))} ({_t(dr.get('recallModelName'))})</div>
+                                    <div class="info-row"><b>KC 인증번호</b> · <code>{_t(dr.get('certNum'))}</code></div>
+                                    <div class="info-row"><b>판매·수입 회사</b> · {_t(dr.get('recallCmpnyName'))} (문의 {_t(dr.get('recallInqryTel'))})</div>
+                                    <div class="info-row"><b>발표일</b> · {_t(dr.get('publishDate'))} &nbsp; <b>만든 나라</b> · {_t(dr.get('makingCntryName'))}</div>
+                                    <div class="qa">
+                                        <div class="qa-q">❓ 어떤 문제가 있었나요?</div>
+                                        <div class="qa-a">{_t(dr.get('harmDscr'))}</div>
+                                        <div class="qa-q">🩺 어떤 사고가 날 수 있나요?</div>
+                                        <div class="qa-a">{_t(dr.get('accidentCaseDscr'))}</div>
+                                        <div class="qa-q">👉 이렇게 하세요</div>
+                                        <div class="qa-a">{_t(dr.get('publishActionDscr'))}</div>
                                     </div>
                                 </div>
-                                """, unsafe_allow_html=True)
-                                
-                                # 공식 웹사이트 상세 게시판 링크
-                                st.markdown(f"👉 **[🔗 국표원 SafetyKorea 공식 리콜 상세 공고문 보기 ({r_board_url})]({r_board_url})**")
+                                """)
 
-                                # 리콜 실물 사진 목록 (전체사진, 부분사진)
+                                st.markdown(f"👉 [정부 리콜 안내문 원문 보기]({r_board_url})")
+
                                 r_files = dr.get("recallFiles") or []
                                 if not r_files and r_uid:
                                     det = safetykorea_api.get_domestic_recall_detail(r_uid)
@@ -816,49 +657,47 @@ def render_user_service():
                                         r_files = det["data"].get("recallFiles") or []
 
                                 if r_files:
-                                    st.markdown(f"**📸 국표원 등록 공식 리콜 사진 (총 {len(r_files)}장)**")
+                                    st.markdown(f"**📸 리콜 제품 사진 ({len(r_files)}장)**")
                                     r_cols = st.columns(min(len(r_files), 4))
                                     for idx, (rf, rc) in enumerate(zip(r_files, r_cols)):
                                         with rc:
-                                            f_div = rf.get("fileDiv") or f"사진 #{idx+1}"
+                                            f_div = rf.get("fileDiv") or f"사진 {idx+1}"
                                             st.image(rf.get("imageUrl"), caption=f_div, use_container_width=True)
 
-                        # 3. 해외직구 안전성조사결과 부적합 적발 카드 (알리/테무 등)
+                        # 해외직구 검사에서 해로운 물질이 나온 제품 (알리·테무 등)
                         os_safeties = safety_res.get("overseas_safety", [])
                         if os_safeties:
                             for os_item in os_safeties:
-                                st.markdown(f"""
-                                <div style="background: rgba(220, 53, 69, 0.15); border: 2px solid #ef4444; border-radius: 10px; padding: 16px; margin-bottom: 14px;">
-                                    <h4 style="margin: 0 0 8px 0; color: #ef4444;">📦 [국표원] 해외직구(알리·테무 등) 유해물질 기준초과 적발</h4>
-                                    <div><strong>제품명(모델명)</strong>: {os_item.get('productName', '-')} ({os_item.get('modelName', '-')})</div>
-                                    <div style="color: #fca5a5; margin-top: 4px;"><strong>🚨 위해 내용</strong>: {os_item.get('harmDscr', '-')}</div>
-                                    <div><strong>공표일자</strong>: {os_item.get('publishDate', '-')} | 제조국: {os_item.get('makingCntryName', '-')}</div>
+                                show_html(f"""
+                                <div class="info-card red">
+                                    <h4>📦 해외직구 검사에서 해로운 물질이 나온 제품이에요</h4>
+                                    <div class="info-row"><b>제품 이름(모델)</b> · {_t(os_item.get('productName'))} ({_t(os_item.get('modelName'))})</div>
+                                    <div class="info-row"><b>문제 내용</b> · {_t(os_item.get('harmDscr'))}</div>
+                                    <div class="info-row"><b>발표일</b> · {_t(os_item.get('publishDate'))} &nbsp; <b>만든 나라</b> · {_t(os_item.get('makingCntryName'))}</div>
                                 </div>
-                                """, unsafe_allow_html=True)
+                                """)
 
-                        # 4. 전파인증 카드
+                        # 전기·전자제품 전파인증
                         if rra_res_list:
-                            st.markdown("#### 📡 국립전파연구원 전자파 적합성평가(KC 전파인증) 대조")
+                            st.markdown("#### 📡 전파인증 확인 (전기·전자제품)")
                             for rr in rra_res_list:
                                 if rr.get("success") and rr.get("data"):
                                     rd = rr["data"]
-                                    st.markdown(f"""
-                                    <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 8px; padding: 12px; margin-bottom: 8px;">
-                                        <span class="badge-safe">정식 전파인증 등록 확인</span> <strong>{rd.get('device_name') or '방송통신기자재'}</strong>
-                                        <div style="font-size: 0.9rem; margin-top: 5px;">
-                                            - 등록번호: <code>{rd.get('cert_num')}</code><br>
-                                            - 상호: {rd.get('company_name')} | 기본모델: {rd.get('model_name')}<br>
-                                            - 인증일자: {rd.get('cert_date')} | 제조국: {rd.get('country')}
-                                        </div>
+                                    show_html(f"""
+                                    <div class="info-card green">
+                                        <h4><span class="badge-safe">정식 인증 확인</span> {_t(rd.get('device_name'), '전기·전자제품')}</h4>
+                                        <div class="info-row"><b>인증번호</b> · <code>{_t(rd.get('cert_num'))}</code></div>
+                                        <div class="info-row"><b>회사</b> · {_t(rd.get('company_name'))} &nbsp; <b>모델</b> · {_t(rd.get('model_name'))}</div>
+                                        <div class="info-row"><b>인증일</b> · {_t(rd.get('cert_date'))} &nbsp; <b>만든 나라</b> · {_t(rd.get('country'))}</div>
                                     </div>
-                                    """, unsafe_allow_html=True)
-                                    st.markdown(f"[🔗 전파연구원 공식 인증대장 원문 보기]({rd.get('source_url')})")
+                                    """)
+                                    st.markdown(f"[🔗 국립전파연구원 인증 원문 보기]({rd.get('source_url')})")
                                 else:
-                                    st.warning(f"⚠️ 전파인증번호 '{rr.get('query')}'는 전파연구원에 등록되지 않았거나 일치하지 않습니다.")
+                                    st.warning(f"⚠️ 전파인증번호 '{rr.get('query')}'는 등록 정보를 찾지 못했어요. 번호를 다시 확인해 주세요.")
 
-                        # 5. KC 인증번호 카드
+                        # KC 안전인증
                         if kc_num:
-                            st.markdown("#### 🏷️ 국가기술표준원 KC안전인증 대조")
+                            st.markdown("#### 🏷️ KC 안전인증 확인")
                             cert_matches = safety_res.get("certifications", [])
                             if cert_matches:
                                 for cm in cert_matches:
@@ -867,110 +706,91 @@ def render_user_service():
                                     has_recall_for_this = any(r.get("certNum") == c_num for r in dom_recalls)
 
                                     if has_recall_for_this:
-                                        badge_html = "<span class='badge-warning'>인증상태: 적합</span> <span class='badge-danger'>🚨 사후조사 리콜 적발 품목</span>"
+                                        badge_html = "<span class='badge-warning'>인증 상태: 적합</span> <span class='badge-danger'>🚨 나중에 리콜된 제품</span>"
                                     else:
-                                        badge_html = f"<span class='badge-safe'>인증상태: {state}</span>"
+                                        badge_html = f"<span class='badge-safe'>인증 상태: {_t(state)}</span>"
 
-                                    st.markdown(f"**인증번호**: `[{c_num}]` | {badge_html}", unsafe_allow_html=True)
-                                    st.write(f"- 품목/모델: {cm.get('productName')} / {cm.get('modelName')}")
-                                    st.write(f"- 인증기관: {cm.get('certOrganName', '-')} | 인증일자: {cm.get('certDate', '-')}")
-                                    
+                                    st.markdown(f"**인증번호** `{c_num}` &nbsp; {badge_html}", unsafe_allow_html=True)
+                                    st.write(f"- 제품/모델: {cm.get('productName')} / {cm.get('modelName')}")
+                                    st.write(f"- 인증한 곳: {cm.get('certOrganName', '-')} | 인증일: {cm.get('certDate', '-')}")
+
                                     if has_recall_for_this:
-                                        st.warning("⚠️ **주의**: 최초 안전확인 신고 시 '적합'으로 등록되었으나, 이후 정부 사후 안전성 조사에서 유해물질 기준치 초과가 확인되어 **리콜(강제 수거·환불) 명령**이 내려진 제품입니다.")
+                                        st.warning("⚠️ 처음 인증받을 땐 '적합'이었지만, 그 뒤 정부 검사에서 해로운 물질이 기준보다 많이 나와 **회수(리콜) 명령**을 받은 제품이에요.")
 
-                                    st.markdown(f"[🔗 SafetyKorea 공식 상세조회](https://www.safetykorea.kr/search/searchPop?certNum={c_num})")
-                                    
+                                    st.markdown(f"[🔗 제품안전정보센터에서 자세히 보기](https://www.safetykorea.kr/search/searchPop?certNum={c_num})")
+
                                     det = safetykorea_api.get_certification_detail(c_num)
                                     if det.get("success") and det.get("data"):
                                         kc_imgs = det["data"].get("certificationImageUrls") or []
                                         if kc_imgs:
-                                            st.markdown(f"**📸 국표원 등록 공식 사진 ({len(kc_imgs)}장)**")
+                                            st.markdown(f"**📸 인증 등록 사진 ({len(kc_imgs)}장)**")
                                             kc_cols = st.columns(min(len(kc_imgs), 4))
                                             for idx, (img_url, ic) in enumerate(zip(kc_imgs, kc_cols)):
                                                 with ic:
-                                                    st.image(img_url, caption=f"사진 #{idx+1}", use_container_width=True)
+                                                    st.image(img_url, caption=f"사진 {idx+1}", use_container_width=True)
                             else:
-                                st.info(f"추출된 KC인증번호(`{kc_num}`)가 SafetyKorea 목록에서 즉시 매칭되지 않았습니다. 서브탭에서 상세 조회가 가능합니다.")
+                                st.info(f"사진에서 읽은 KC 인증번호(`{kc_num}`)를 바로 찾지 못했어요. 아래 '직접 찾아보기'에서 다시 검색해 보세요.")
         else:
-            st.info("👆 위에서 검사할 제품의 사진을 촬영하거나 등록한 뒤, **[🚀 AI 안심 진단 시작하기]** 버튼을 눌러주세요.")
+            st.info("👆 사진을 올린 뒤 **[🔍 안전한지 확인하기]** 버튼을 눌러 주세요.")
 
-        # -------------------------------------------------------------
         # =============================================================
-        # 🏛️ 부가 서비스: 범정부 안전 DB 직접 검색 및 통관 규정 안내
+        # 직접 찾아보기 (사진 없이 이름·번호로 검색)
         # =============================================================
-        st.markdown("---")
-        st.markdown("""
-        <div style="background: rgba(30, 41, 59, 0.45); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 12px; padding: 16px 20px; margin-bottom: 16px;">
-            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="background: rgba(148, 163, 184, 0.2); color: #cbd5e1; font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 4px;">
-                        보조 기능
-                    </span>
-                    <h3 style="margin: 0; color: #f1f5f9; font-size: 1.15rem; font-weight: 700;">
-                        🏛️ 범정부 공공 안전 DB 직접 조회 및 부가 서비스
-                    </h3>
-                </div>
-                <span style="font-size: 0.78rem; color: #94a3b8;">
-                    KC인증 · 전파인증 · 리콜공고 · 위해식품 DB 수동 검색
-                </span>
-            </div>
-            <p style="color: #94a3b8; font-size: 0.83rem; margin: 6px 0 0 0; line-height: 1.5;">
-                AI 사진 촬영 검사 외에, 모델명·인증번호·성분명을 직접 입력하여 식약처·국표원·전파연구원 전산망의 세부 이력을 수동으로 검색하거나 대조할 수 있는 부가 기능입니다.
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown("")
+        show_html("""
+        <div class="sec-title" style="margin-top: 26px;"><h2>🔎 직접 찾아보기</h2>
+        <span>사진이 없어도 괜찮아요. 제품 이름이나 인증번호를 입력해서 찾을 수 있어요.</span></div>
+        """)
 
-        sub_tab1, sub_tab2, sub_tab3 = st.tabs([
-            "🏷️ 범정부 4대 제품안전·전파인증 DB (국표원 & 전파연)",
-            "🔍 식약처 위해식품 차단 DB 직접 검색",
-            "⌨️ 제품명·성분 직접 입력 수동 대조"
+        tab_drug, tab_kc, tab_rra, tab_recall, tab_os = st.tabs([
+            "💊 약·영양제",
+            "✅ KC 안전인증",
+            "🔌 전기제품 전파인증",
+            "🚨 리콜(회수) 제품",
+            "📦 해외직구 위험 제품",
         ])
 
-        # 부가 탭 1: 범정부 안전인증 DB (국표원 + 전파연구원)
-        with sub_tab1:
-            render_safety_db_section()
+        # 약·영양제
+        with tab_drug:
+            st.markdown("##### 💊 들여올 수 없는 해외 약·식품 찾아보기")
+            st.caption("식약처가 '해외에서 사 오면 안 된다'고 정한 제품 목록이에요. 제품 이름, 성분, 바코드, 회사 이름으로 찾을 수 있어요.")
+            search_q = st.text_input("찾을 단어", placeholder="예: 멜라토닌, yohimbine, 다이어트", key="user_food_search_q")
 
-        # 부가 탭 2: 위해식품 차단 DB 통합 검색
-        with sub_tab2:
-            st.subheader("🔍 식약처 해외직구 위해식품 차단 목록 검색")
-            st.caption("식품의약품안전처에서 관세청에 통관 보류 및 반입 금지를 요청한 공식 차단 목록입니다.")
-            search_q = st.text_input("검색어 입력 (제품명, 검출 위해성분, 바코드, 제조사)", key="user_food_search_q")
-            
-            if search_q.strip() or st.button("목록 새로고침", key="user_refresh_food"):
+            if search_q.strip() or st.button("전체 목록 보기", key="user_refresh_food"):
                 res = db_service.search(query=search_q, page=1, page_size=20)
                 items = res.get("items", [])
                 total = res.get("total", 0)
 
-                st.write(f"검색 결과: 총 **{total:,}** 건")
+                st.write(f"찾은 결과: **{total:,}건**")
                 if items:
                     for item in items:
-                        with st.expander(f"[{item.get('등록번호', '-')}] {item.get('제품명', '이름 없음')} (성분: {item.get('성분명', '-')})"):
+                        with st.expander(f"🚫 {item.get('제품명', '이름 없음')}  ·  성분: {item.get('성분명', '-')}"):
                             c1, c2 = st.columns([1, 2])
                             with c1:
                                 img_url = item.get("이미지경로")
                                 if img_url:
                                     st.image(img_url, use_container_width=True)
                                 else:
-                                    st.caption("등록 이미지 없음")
+                                    st.caption("등록된 사진 없음")
                             with c2:
-                                st.write(f"**제조사/국가**: {item.get('제조사', '-')} / {item.get('제조국', '-')}")
-                                st.write(f"**검출 위해성분**: {item.get('성분명', '-')}")
-                                st.write(f"**회수/차단 사유**: {item.get('회수사유', '-')}")
+                                st.write(f"**만든 회사 / 나라**: {item.get('제조사', '-')} / {item.get('제조국', '-')}")
+                                st.write(f"**문제 성분**: {item.get('성분명', '-')}")
+                                st.write(f"**막힌 이유**: {item.get('회수사유', '-')}")
                                 st.write(f"**바코드**: `{item.get('바코드', '-')}`")
-                                st.write(f"**정보 출처**: {item.get('정보출처', '-')}")
+                                st.caption(f"자료 출처: {item.get('정보출처', '-')} · 등록번호 {item.get('등록번호', '-')}")
                 else:
-                    st.info("검색 조건에 일치하는 차단 정보가 없습니다.")
+                    st.info("찾는 단어와 맞는 제품이 차단 목록에 없어요.")
 
-        # 부가 탭 3: 제품 텍스트 직접 입력 수동 검사
-        with sub_tab3:
-            st.subheader("⌨️ 제품 정보 직접 입력 대조 (식약처 + 국표원)")
-            t_name = st.text_input("제품명", key="user_t_name")
-            t_barcode = st.text_input("바코드 (선택)", key="user_t_bar")
-            t_ing = st.text_area("의심 성분 (쉼표로 구분 입력, 예: yohimbine, sildenafil, melatonin)", key="user_t_ing")
+            st.markdown("---")
+            st.markdown("##### ⌨️ 제품 이름·성분을 직접 입력해서 확인하기")
+            st.caption("성분표에 적힌 성분을 입력하면 차단 목록과 비교해 드려요.")
+            t_name = st.text_input("제품 이름", key="user_t_name")
+            t_barcode = st.text_input("바코드 (없으면 비워 두세요)", key="user_t_bar")
+            t_ing = st.text_area("성분 (쉼표로 나눠서 입력, 예: yohimbine, sildenafil, melatonin)", key="user_t_ing")
 
-            if st.button("안심 대조 실행", type="primary", key="user_t_btn"):
+            if st.button("확인하기", type="primary", key="user_t_btn"):
                 if not t_name.strip() and not t_ing.strip():
-                    st.warning("제품명 또는 성분을 입력해 주세요.")
+                    st.warning("제품 이름이나 성분 중 하나는 입력해 주세요.")
                 else:
                     ing_list = [x.strip() for x in t_ing.split(",") if x.strip()]
                     ocr_data = {
@@ -982,13 +802,19 @@ def render_user_service():
                     safety_res = safetykorea_api.comprehensive_check(product_name=t_name, barcode=t_barcode)
 
                     if res.get("matched") or safety_res.get("has_danger"):
-                        st.error("🚨 [차단 대상] 입력하신 정보가 정부 위해물품 데이터베이스와 일치합니다!")
-                        st.json({
-                            "식약처_매칭결과": res,
-                            "국표원_안전정보": safety_res
-                        })
+                        st.error("🚫 입력한 내용이 정부의 위험 제품 목록과 일치해요. 구매하지 않는 것이 좋아요.")
+                        with st.expander("자세한 비교 자료 보기"):
+                            st.json({
+                                "식약처_비교결과": res,
+                                "국표원_안전정보": safety_res
+                            })
                     else:
-                        st.success("✅ [정상] 정부 공인 위해식품 및 리콜 데이터베이스에 일치하는 내역이 없습니다.")
+                        st.success("✅ 정부의 위험 제품·리콜 목록에서 일치하는 내용을 찾지 못했어요.")
+
+        render_kc_search(tab_kc)
+        render_rra_search(tab_rra)
+        render_recall_search(tab_recall)
+        render_overseas_search(tab_os)
 
 
 # =============================================================
@@ -1276,241 +1102,235 @@ SQLite DB 경로: {SQLITE_DB_PATH}
 
 
 # =============================================================
-# 공통 서브모듈: 범정부 안전인증 DB (국표원 + 전파연구원)
+# 직접 찾아보기: 안전인증·전파인증·리콜·해외직구 검사 결과
+# (국가기술표준원 제품안전정보센터 + 국립전파연구원)
 # =============================================================
-def render_safety_db_section():
-    st.markdown("### 🏛️ 범정부 4대 제품안전 및 전파인증 실시간 조회")
-    st.caption("국가기술표준원(SafetyKorea v2.1)과 과학기술정보통신부 국립전파연구원(RRA) 공식 전산망을 실시간 조회합니다.")
-
-    sk_sub1, sk_sub2, sk_sub3, sk_sub4, sk_sub5 = st.tabs([
-        "🏷️ KC안전인증 (국표원)",
-        "📡 전자파적합등록 (전파연구원)",
-        "🚨 국내리콜정보",
-        "🌍 국외리콜정보",
-        "📦 해외직구 안전성조사결과"
-    ])
-
-    # 1. KC인증정보
-    with sk_sub1:
-        st.subheader("🏷️ KC안전인증정보 조회")
+def render_kc_search(container):
+    with container:
+        st.markdown("##### ✅ KC 안전인증을 받은 제품인지 확인하기")
+        st.caption("어린이 제품·생활용품·전기용품은 우리나라에서 팔려면 KC 안전인증이 필요해요. 제품 이름이나 KC 인증번호로 찾아보세요.")
         c1, c2 = st.columns([1, 2])
         with c1:
-            cert_cond = st.selectbox("검색 구분", [
+            cert_cond = st.selectbox("무엇으로 찾을까요?", [
                 ("all", "전체"),
-                ("productName", "제품명"),
+                ("productName", "제품 이름"),
                 ("modelName", "모델명"),
                 ("certNum", "인증번호")
             ], format_func=lambda x: x[1], key="kc_cond")
         with c2:
-            cert_val = st.text_input("검색어 입력", placeholder="예: 충전기, 보조배터리, 어린이, 완구 등", key="kc_val")
-        
-        if st.button("KC인증정보 검색", type="primary", key="kc_btn"):
+            cert_val = st.text_input("찾을 단어", placeholder="예: 충전기, 보조배터리, 유아용 의자, 장난감", key="kc_val")
+
+        if st.button("KC 인증 찾기", type="primary", key="kc_btn"):
             if not cert_val.strip():
-                st.warning("검색어를 입력해 주세요.")
+                st.warning("찾을 단어를 입력해 주세요.")
             else:
-                with st.spinner("SafetyKorea KC인증정보 조회 중..."):
+                with st.spinner("제품안전정보센터에서 찾고 있어요..."):
                     res = safetykorea_api.search_certifications(query=cert_val.strip(), condition_key=cert_cond[0])
                     if res.get("success"):
                         items = res.get("items", [])
-                        st.write(f"조회 결과: 총 **{len(items):,}** 건")
+                        st.write(f"찾은 결과: **{len(items):,}건**")
                         for item in items[:15]:
                             state = item.get("certState", "-")
                             badge = "badge-safe" if state == "적합" else "badge-danger"
-                            with st.expander(f"[{item.get('certNum', '-')}] {item.get('productName', '-')} ({item.get('modelName', '-')})"):
-                                st.markdown(f"**인증상태**: <span class='{badge}'>{state}</span>", unsafe_allow_html=True)
-                                st.write(f"- **인증구분**: {item.get('certDiv', '-')}")
-                                st.write(f"- **제조사/제조국**: {item.get('makerName', '-')} / {item.get('makerCntryName', '-')}")
-                                st.write(f"- **수입사**: {item.get('importerName', '-')}")
-                                st.write(f"- **인증일자**: {item.get('certDate', '-')}")
-                                
+                            with st.expander(f"{item.get('productName', '-')} ({item.get('modelName', '-')})  ·  {item.get('certNum', '-')}"):
+                                st.markdown(f"**인증 상태**: <span class='{badge}'>{_t(state)}</span>", unsafe_allow_html=True)
+                                st.write(f"- **인증 종류**: {item.get('certDiv', '-')}")
+                                st.write(f"- **만든 회사 / 나라**: {item.get('makerName', '-')} / {item.get('makerCntryName', '-')}")
+                                st.write(f"- **수입한 회사**: {item.get('importerName', '-')}")
+                                st.write(f"- **인증일**: {item.get('certDate', '-')}")
+
                                 c_num = item.get('certNum')
                                 if c_num:
-                                    st.markdown(f"[🔗 SafetyKorea 공식 인증상세 원문 조회](https://www.safetykorea.kr/search/searchPop?certNum={c_num})")
+                                    st.markdown(f"[🔗 제품안전정보센터에서 자세히 보기](https://www.safetykorea.kr/search/searchPop?certNum={c_num})")
                                     det = safetykorea_api.get_certification_detail(c_num)
                                     if det.get("success") and det.get("data"):
                                         kc_imgs = det["data"].get("certificationImageUrls") or []
                                         if kc_imgs:
-                                            st.markdown(f"**📸 국표원 공식 등록 인증 사진 (총 {len(kc_imgs)}장)**")
+                                            st.markdown(f"**📸 인증 등록 사진 ({len(kc_imgs)}장)**")
                                             kc_cols = st.columns(min(len(kc_imgs), 4))
                                             for idx, (img_url, ic) in enumerate(zip(kc_imgs, kc_cols)):
                                                 with ic:
-                                                    st.image(img_url, caption=f"사진 #{idx+1}", use_container_width=True)
+                                                    st.image(img_url, caption=f"사진 {idx+1}", use_container_width=True)
                     else:
-                        st.error(f"조회 실패: {res.get('error')}")
+                        st.error(f"지금은 찾을 수 없어요. 잠시 후 다시 시도해 주세요. ({res.get('error')})")
 
-    # 2. 전자파적합등록 (전파연구원 RRA)
-    with sk_sub2:
-        st.subheader("📡 국립전파연구원 전자파 적합성평가(KC 전파인증) 조회")
-        st.caption("과학기술정보통신부 국립전파연구원(RRA) 공식 적합성평가 데이터베이스를 실시간 대조합니다.")
-        
+
+def render_rra_search(container):
+    with container:
+        st.markdown("##### 🔌 전기·전자제품 전파인증 확인하기")
+        st.caption("무선 이어폰, 충전기, 블루투스 기기처럼 전파를 쓰는 제품은 국립전파연구원 인증이 필요해요. 제품이나 상자에 적힌 인증번호(R-로 시작)를 입력하세요.")
+
         rra_col1, rra_col2 = st.columns([3, 1])
         with rra_col1:
             rra_input_val = st.text_input(
-                "인증/등록번호 입력", 
-                placeholder="예: R-REM-Y15-YW1801, R-RRI-Y15-YW1802, MSIP-REM-..., KCC-...",
+                "인증번호",
+                placeholder="예: R-REM-Y15-YW1801, MSIP-REM-..., KCC-...",
                 key="rra_manual_input"
             )
         with rra_col2:
             st.write("")
             st.write("")
-            rra_search_btn = st.button("전자파인증 조회", type="primary", key="rra_manual_btn")
-            
+            rra_search_btn = st.button("전파인증 찾기", type="primary", key="rra_manual_btn", use_container_width=True)
+
         if rra_search_btn:
             if not rra_input_val.strip():
-                st.warning("전자파적합성평가 등록/인증번호를 입력해 주세요.")
+                st.warning("인증번호를 입력해 주세요.")
             else:
-                with st.spinner("국립전파연구원 공식 전산망 실시간 조회 중..."):
+                with st.spinner("국립전파연구원에서 찾고 있어요..."):
                     rra_res = rra_api.lookup_conformity(rra_input_val.strip())
                     if rra_res.get("success") and rra_res.get("data"):
                         rd = rra_res["data"]
-                        st.success(f"✅ 국립전파연구원 공식 등록 확인 완료: **{rd.get('cert_num')}**")
-                        
-                        st.markdown(f"""
-                        <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 10px; padding: 18px; margin-top: 10px;">
-                            <h4 style="margin: 0 0 12px 0; color: #60a5fa;">📡 {rd.get('device_name') or '방송통신기자재'}</h4>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.95rem;">
-                                <div><strong>📋 등록/인증번호:</strong> <code>{rd.get('cert_num')}</code></div>
-                                <div><strong>🏢 상호(신청자):</strong> {rd.get('company_name') or '-'}</div>
-                                <div><strong>🏷️ 기본 모델명:</strong> {rd.get('model_name') or '-'}</div>
-                                <div><strong>📅 인증/등록일자:</strong> {rd.get('cert_date') or '-'}</div>
-                                <div><strong>🏭 제조자/제조국:</strong> {rd.get('maker') or '-'} / {rd.get('country') or '-'}</div>
-                                <div><strong>⚖️ 적합성평가 구분:</strong> {rd.get('cert_type') or '적합등록'}</div>
-                            </div>
+                        st.success(f"✅ 정식으로 인증받은 제품이에요: **{rd.get('cert_num')}**")
+
+                        show_html(f"""
+                        <div class="info-card green">
+                            <h4>🔌 {_t(rd.get('device_name'), '전기·전자제품')}</h4>
+                            <div class="info-row"><b>인증번호</b> · <code>{_t(rd.get('cert_num'))}</code></div>
+                            <div class="info-row"><b>신청한 회사</b> · {_t(rd.get('company_name'))}</div>
+                            <div class="info-row"><b>모델명</b> · {_t(rd.get('model_name'))}</div>
+                            <div class="info-row"><b>인증일</b> · {_t(rd.get('cert_date'))}</div>
+                            <div class="info-row"><b>만든 곳 / 나라</b> · {_t(rd.get('maker'))} / {_t(rd.get('country'))}</div>
+                            <div class="info-row"><b>인증 종류</b> · {_t(rd.get('cert_type'), '적합등록')}</div>
                         </div>
-                        """, unsafe_allow_html=True)
-                        
+                        """)
+
                         derivatives = rd.get("derivative_models", [])
                         if derivatives:
-                            st.write(f"- **파생 모델명 ({len(derivatives)}개)**: {', '.join(derivatives)}")
-                            
-                        st.markdown(f"[🔗 국립전파연구원 공식 인증대장 원문 팝업 열기]({rd.get('source_url')})")
-                    else:
-                        st.error(f"❌ {rra_res.get('error') or '등록되지 않은 인증번호이거나 유효하지 않습니다.'}")
+                            st.write(f"- **같이 인증된 모델 ({len(derivatives)}개)**: {', '.join(derivatives)}")
 
-    # 3. 국내리콜정보
-    with sk_sub3:
-        st.subheader("🚨 국내리콜정보 조회")
+                        st.markdown(f"[🔗 국립전파연구원 인증 원문 보기]({rd.get('source_url')})")
+                    else:
+                        st.error(f"❌ 등록되지 않았거나 잘못된 인증번호예요. 번호를 다시 확인해 주세요. ({rra_res.get('error') or ''})")
+
+
+def render_recall_search(container):
+    with container:
+        st.markdown("##### 🚨 리콜(회수)된 제품 찾아보기")
+        st.caption("리콜은 위험이 발견돼 판매를 멈추고 거둬들이는 제품이에요. 우리나라와 해외에서 리콜된 제품을 찾아볼 수 있어요.")
+
+        where = st.radio("어디에서 리콜된 제품을 찾을까요?", ["🇰🇷 우리나라", "🌍 해외"], horizontal=True, key="recall_where")
+
+        if where.startswith("🇰🇷"):
+            c1, c2 = st.columns([1, 2])
+            with c1:
+                dr_cond = st.selectbox("무엇으로 찾을까요?", [
+                    ("all", "전체"),
+                    ("recallProductName", "제품 이름"),
+                    ("recallModelName", "모델명"),
+                    ("barcodeNum", "바코드"),
+                    ("certNum", "인증번호")
+                ], format_func=lambda x: x[1], key="dr_cond")
+            with c2:
+                dr_val = st.text_input("찾을 단어", placeholder="예: 장난감, 유아 의자, 가방, 배터리", key="dr_val")
+
+            if st.button("리콜 제품 찾기", type="primary", key="dr_btn"):
+                if not dr_val.strip():
+                    st.warning("찾을 단어를 입력해 주세요.")
+                else:
+                    with st.spinner("우리나라 리콜 제품을 찾고 있어요..."):
+                        res = safetykorea_api.search_domestic_recalls(query=dr_val.strip(), condition_key=dr_cond[0])
+                        if res.get("success"):
+                            items = res.get("items", [])
+                            st.write(f"찾은 결과: **{len(items):,}건**")
+                            for item in items[:15]:
+                                u_id = item.get("recallUid")
+                                r_url = f"https://www.safetykorea.kr/recall/ajax/recallBoard?recallUid={u_id}" if u_id else "https://www.safetykorea.kr"
+
+                                with st.expander(f"🚨 {item.get('recallProductName', '-')} ({item.get('recallModelName', '-')})  ·  {item.get('recallTypeName', '리콜')}"):
+                                    st.error(f"**판매·수입 회사**: {item.get('recallCmpnyName', '-')} (문의 {item.get('recallInqryTel', '-')})")
+                                    if item.get("certNum"):
+                                        st.write(f"- **인증번호**: `{item.get('certNum')}`")
+                                    st.write(f"- **발표일**: {item.get('publishDate', '-')}")
+                                    st.write(f"- **만든 나라**: {item.get('makingCntryName', '-')}")
+                                    st.write(f"- **어떤 문제가 있었나요?** {item.get('harmDscr', '자세한 내용은 원문을 확인하세요')}")
+                                    st.write(f"- **어떤 사고가 날 수 있나요?** {item.get('accidentCaseDscr', '-')}")
+                                    st.write(f"- **이렇게 하세요**: {item.get('publishActionDscr', '-')}")
+
+                                    st.markdown(f"👉 [정부 리콜 안내문 원문 보기]({r_url})")
+
+                                    if u_id:
+                                        det = safetykorea_api.get_domestic_recall_detail(u_id)
+                                        if det.get("success") and det.get("data"):
+                                            r_files = det["data"].get("recallFiles") or []
+                                            if r_files:
+                                                st.markdown(f"**📸 리콜 제품 사진 ({len(r_files)}장)**")
+                                                r_cols = st.columns(min(len(r_files), 4))
+                                                for idx, (rf, rc) in enumerate(zip(r_files, r_cols)):
+                                                    with rc:
+                                                        f_div = rf.get("fileDiv") or f"사진 {idx+1}"
+                                                        st.image(rf.get("imageUrl"), caption=f_div, use_container_width=True)
+                        else:
+                            st.error(f"지금은 찾을 수 없어요. 잠시 후 다시 시도해 주세요. ({res.get('error')})")
+        else:
+            c1, c2 = st.columns([1, 2])
+            with c1:
+                fr_cond = st.selectbox("무엇으로 찾을까요?", [
+                    ("all", "전체"),
+                    ("recallProductName", "제품 이름"),
+                    ("recallModelName", "모델명"),
+                    ("recallBrandName", "브랜드")
+                ], format_func=lambda x: x[1], key="fr_cond")
+            with c2:
+                fr_val = st.text_input("찾을 단어", placeholder="예: 장난감, 텀블러, 드라이어", key="fr_val")
+
+            if st.button("해외 리콜 제품 찾기", type="primary", key="fr_btn"):
+                if not fr_val.strip():
+                    st.warning("찾을 단어를 입력해 주세요.")
+                else:
+                    with st.spinner("해외 리콜 제품을 찾고 있어요..."):
+                        res = safetykorea_api.search_foreign_recalls(query=fr_val.strip(), condition_key=fr_cond[0])
+                        if res.get("success"):
+                            items = res.get("items", [])
+                            st.write(f"찾은 결과: **{len(items):,}건**")
+                            for item in items[:15]:
+                                with st.expander(f"🌍 [{item.get('recallPblshCntryName', '해외')}] {item.get('recallProductName', '-')} ({item.get('recallModelName', '-')})"):
+                                    st.warning(f"**발표한 기관**: {item.get('recallPblshOrgnName', '-')} | **리콜 종류**: {item.get('recallTypeName', '-')}")
+                                    st.write(f"- **어떤 문제가 있었나요?** {item.get('violateDscr', '-')}")
+                                    st.write(f"- **이렇게 하세요**: {item.get('publishActionDscr', '-')}")
+                                    st.write(f"- **만든 나라**: {item.get('makingCntryName', '-')}")
+                                    img_url = item.get("imageUrl")
+                                    if img_url:
+                                        first_img = img_url.split(",")[0]
+                                        st.image(first_img, caption="리콜 제품 사진", width=250)
+                        else:
+                            st.error(f"지금은 찾을 수 없어요. 잠시 후 다시 시도해 주세요. ({res.get('error')})")
+
+
+def render_overseas_search(container):
+    with container:
+        st.markdown("##### 📦 해외직구 검사에서 문제가 나온 제품 찾아보기")
+        st.caption("정부가 알리·테무 등 해외 쇼핑몰 제품을 직접 사서 검사했더니 해로운 물질이 기준보다 많이 나온 제품이에요.")
         c1, c2 = st.columns([1, 2])
         with c1:
-            dr_cond = st.selectbox("검색 구분", [
+            os_cond = st.selectbox("무엇으로 찾을까요?", [
                 ("all", "전체"),
-                ("recallProductName", "제품명"),
-                ("recallModelName", "모델명"),
-                ("barcodeNum", "바코드"),
-                ("certNum", "인증번호")
-            ], format_func=lambda x: x[1], key="dr_cond")
-        with c2:
-            dr_val = st.text_input("검색어 입력", placeholder="예: 가방, 완구, 배터리 등", key="dr_val")
-
-        if st.button("국내리콜정보 검색", type="primary", key="dr_btn"):
-            if not dr_val.strip():
-                st.warning("검색어를 입력해 주세요.")
-            else:
-                with st.spinner("SafetyKorea 국내리콜정보 조회 중..."):
-                    res = safetykorea_api.search_domestic_recalls(query=dr_val.strip(), condition_key=dr_cond[0])
-                    if res.get("success"):
-                        items = res.get("items", [])
-                        st.write(f"조회 결과: 총 **{len(items):,}** 건")
-                        for item in items[:15]:
-                            u_id = item.get("recallUid")
-                            r_url = f"https://www.safetykorea.kr/recall/ajax/recallBoard?recallUid={u_id}" if u_id else "https://www.safetykorea.kr"
-                            
-                            with st.expander(f"[{item.get('recallTypeName', '리콜')}] {item.get('recallProductName', '-')} ({item.get('recallModelName', '-')})"):
-                                st.error(f"**리콜 사업자**: {item.get('recallCmpnyName', '-')} (문의: {item.get('recallInqryTel', '-')})")
-                                if item.get("certNum"):
-                                    st.write(f"- **인증번호**: `{item.get('certNum')}`")
-                                st.write(f"- **공표일자**: {item.get('publishDate', '-')}")
-                                st.write(f"- **제조국가**: {item.get('makingCntryName', '-')}")
-                                st.write(f"- **제품 결함**: {item.get('harmDscr', '상세내용 확인')}")
-                                st.write(f"- **사고/위해정보**: {item.get('accidentCaseDscr', '-')}")
-                                st.write(f"- **소비자 행동요령/조치사항**: {item.get('publishActionDscr', '-')}")
-                                
-                                st.markdown(f"👉 **[🔗 SafetyKorea 공식 리콜 상세 공고문 보기 ({r_url})]({r_url})**")
-                                
-                                if u_id:
-                                    det = safetykorea_api.get_domestic_recall_detail(u_id)
-                                    if det.get("success") and det.get("data"):
-                                        r_files = det["data"].get("recallFiles") or []
-                                        if r_files:
-                                            st.markdown(f"**📸 국표원 공식 리콜 사진 (총 {len(r_files)}장)**")
-                                            r_cols = st.columns(min(len(r_files), 4))
-                                            for idx, (rf, rc) in enumerate(zip(r_files, r_cols)):
-                                                with rc:
-                                                    f_div = rf.get("fileDiv") or f"사진 #{idx+1}"
-                                                    st.image(rf.get("imageUrl"), caption=f_div, use_container_width=True)
-                    else:
-                        st.error(f"조회 실패: {res.get('error')}")
-
-    # 4. 국외리콜정보
-    with sk_sub4:
-        st.subheader("🌍 국외리콜정보 조회 (해외 수입거절·회수)")
-        c1, c2 = st.columns([1, 2])
-        with c1:
-            fr_cond = st.selectbox("검색 구분", [
-                ("all", "전체"),
-                ("recallProductName", "제품명"),
-                ("recallModelName", "모델명"),
-                ("recallBrandName", "브랜드명")
-            ], format_func=lambda x: x[1], key="fr_cond")
-        with c2:
-            fr_val = st.text_input("검색어 입력", placeholder="예: 완구, 텀블러, 드라이어 등", key="fr_val")
-
-        if st.button("국외리콜정보 검색", type="primary", key="fr_btn"):
-            if not fr_val.strip():
-                st.warning("검색어를 입력해 주세요.")
-            else:
-                with st.spinner("SafetyKorea 국외리콜정보 조회 중..."):
-                    res = safetykorea_api.search_foreign_recalls(query=fr_val.strip(), condition_key=fr_cond[0])
-                    if res.get("success"):
-                        items = res.get("items", [])
-                        st.write(f"조회 결과: 총 **{len(items):,}** 건")
-                        for item in items[:15]:
-                            with st.expander(f"[{item.get('recallPblshCntryName', '해외')}] {item.get('recallProductName', '-')} ({item.get('recallModelName', '-')})"):
-                                st.warning(f"**공표기관**: {item.get('recallPblshOrgnName', '-')} | **리콜종류**: {item.get('recallTypeName', '-')}")
-                                st.write(f"- **위해내용**: {item.get('violateDscr', '-')}")
-                                st.write(f"- **조치사항**: {item.get('publishActionDscr', '-')}")
-                                st.write(f"- **제조국**: {item.get('makingCntryName', '-')}")
-                                img_url = item.get("imageUrl")
-                                if img_url:
-                                    first_img = img_url.split(",")[0]
-                                    st.image(first_img, caption="국외 리콜 물품 사진", width=250)
-                    else:
-                        st.error(f"조회 실패: {res.get('error')}")
-
-    # 5. 해외직구 안전성조사결과
-    with sk_sub5:
-        st.subheader("📦 해외직구 안전성조사결과 조회 (알리·테무 등 유해물질 기준초과 적발)")
-        c1, c2 = st.columns([1, 2])
-        with c1:
-            os_cond = st.selectbox("검색 구분", [
-                ("all", "전체"),
-                ("productName", "제품명"),
+                ("productName", "제품 이름"),
                 ("modelName", "모델명")
             ], format_func=lambda x: x[1], key="os_cond")
         with c2:
-            os_val = st.text_input("검색어 입력", placeholder="예: 전지, 배터리, 장난감, 화장품 등", key="os_val")
+            os_val = st.text_input("찾을 단어", placeholder="예: 장난감, 어린이 신발, 배터리, 머리띠", key="os_val")
 
-        if st.button("해외직구 안전성조사 검색", type="primary", key="os_btn"):
+        if st.button("문제 제품 찾기", type="primary", key="os_btn"):
             if not os_val.strip():
-                st.warning("검색어를 입력해 주세요.")
+                st.warning("찾을 단어를 입력해 주세요.")
             else:
-                with st.spinner("SafetyKorea 해외직구 안전성조사결과 조회 중..."):
+                with st.spinner("해외직구 검사 결과를 찾고 있어요..."):
                     res = safetykorea_api.search_overseas_safety(query=os_val.strip(), condition_key=os_cond[0])
                     if res.get("success"):
                         items = res.get("items", [])
-                        st.write(f"조회 결과: 총 **{len(items):,}** 건")
+                        st.write(f"찾은 결과: **{len(items):,}건**")
                         for item in items[:15]:
-                            with st.expander(f"[해외직구 부적합] {item.get('productName', '-')} ({item.get('modelName', '-')})"):
-                                st.error(f"**🚨 부적합 판정 내용**: {item.get('harmDscr', '-')}")
-                                st.write(f"- **위해 정보**: {item.get('accidentCaseDscr', '-')}")
-                                st.write(f"- **공표일자**: {item.get('publishDate', '-')}")
-                                st.write(f"- **제조국**: {item.get('makingCntryName', '-')}")
+                            with st.expander(f"📦 {item.get('productName', '-')} ({item.get('modelName', '-')})"):
+                                st.error(f"**🚨 무엇이 문제였나요?** {item.get('harmDscr', '-')}")
+                                st.write(f"- **몸에 미치는 영향**: {item.get('accidentCaseDscr', '-')}")
+                                st.write(f"- **발표일**: {item.get('publishDate', '-')}")
+                                st.write(f"- **만든 나라**: {item.get('makingCntryName', '-')}")
                                 img_url = item.get("imageUrl")
                                 if img_url:
                                     first_img = img_url.split(",")[0]
-                                    st.image(first_img, caption="시험 검사 물품 사진", width=300)
+                                    st.image(first_img, caption="검사한 제품 사진", width=300)
                     else:
-                        st.error(f"조회 실패: {res.get('error')}")
+                        st.error(f"지금은 찾을 수 없어요. 잠시 후 다시 시도해 주세요. ({res.get('error')})")
 
 
 # =============================================================

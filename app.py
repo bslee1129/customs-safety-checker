@@ -395,6 +395,7 @@ def render_user_service():
                         has_safety_danger = safety_res.get("has_danger", False)
 
                         db_rec = match_result.get("record") or {}
+                        is_product_kind = match_result.get("kind") == "product"
                         match_stage = match_result.get("match_stage", "")
 
                         # 빈 값 대신 보여줄 기본 문구
@@ -403,7 +404,7 @@ def render_user_service():
                             db_rec.get("성분명")
                             or match_result.get("db_harmful_ingredient")
                             or ", ".join(ocr_result.get("harmful_suspects", []))
-                            or "처방전이 필요한 해외 약 성분"
+                            or ("제품 안전 표시 확인 필요" if is_product_kind else "처방전이 필요한 해외 약 성분")
                         )
                         matched_reason = (
                             db_rec.get("회수사유")
@@ -414,7 +415,7 @@ def render_user_service():
                         )
                         matched_maker = db_rec.get("제조사") or ocr_result.get("brand") or "해외 회사"
                         matched_country = db_rec.get("제조국") or "해외"
-                        matched_source = db_rec.get("정보출처") or "식품안전나라(식약처) 공공데이터 · 관세청 AI 판정"
+                        matched_source = db_rec.get("정보출처") or ("AI 사진 판독 (제품 표시 확인)" if is_product_kind else "식품안전나라(식약처) 공공데이터 · 관세청 AI 판정")
 
                         # -------------------------------------------------------------
                         # 1. 한눈에 보는 결과
@@ -427,6 +428,17 @@ def render_user_service():
                                     <h2>사지 마세요! 위험한 제품이에요</h2>
                                     <p>정부가 막아 둔 성분이 들어 있거나, 회수(리콜) 명령을 받은 제품이에요.
                                     이미 주문했다면 취소하는 것이 좋아요. 그대로 들어오면 세관에서 폐기될 수 있어요.</p>
+                                </div>
+                            </div>
+                            """)
+                        elif food_status == "WARNING" and is_product_kind:
+                            show_html("""
+                            <div class="verdict warn">
+                                <div class="verdict-icon">⚠️</div>
+                                <div>
+                                    <h2>잠깐! 제품 표시를 확인해 주세요</h2>
+                                    <p>사용 연령·인증 표시 등 제품에 적힌 안전 정보에서 이상한 점이 보여요.
+                                    아래 내용을 읽고, 판매자에게 확인한 뒤 구매를 결정해 주세요.</p>
                                 </div>
                             </div>
                             """)
@@ -534,7 +546,9 @@ def render_user_service():
                                 st.markdown("**🏛️ 정부 자료와 비교한 결과**")
                                 if is_blocked:
                                     st.write(f"- **등록된 제품 이름**: {matched_product_name}")
-                                    st.write(f"- **문제가 된 성분**: <span class='badge-danger'>{_t(matched_harmful_ingr)}</span>", unsafe_allow_html=True)
+                                    concern_label = "확인이 필요한 점" if is_product_kind else "문제가 된 성분"
+                                    badge_c = "badge-warning" if food_status == "WARNING" else "badge-danger"
+                                    st.write(f"- **{concern_label}**: <span class='{badge_c}'>{_t(matched_harmful_ingr)}</span>", unsafe_allow_html=True)
                                     st.write(f"- **안 되는 이유**: {matched_reason}")
                                     st.write(f"- **판단 근거**: {match_stage or '정부 차단 기준과 일치'}")
                                     st.write(f"- **자료 출처**: {matched_source}")
@@ -552,17 +566,22 @@ def render_user_service():
                         if is_blocked:
                             is_danger = food_status == "DANGER"
                             card_cls = "red" if is_danger else "amber"
-                            card_title = "🚫 식약처가 들여오지 못하게 막아 둔 제품이에요" if is_danger else "⚠️ 처방전이 필요하거나 들여올 수 있는 양이 정해진 약이에요"
+                            if is_danger:
+                                card_title = "🚫 식약처가 들여오지 못하게 막아 둔 제품이에요"
+                            elif is_product_kind:
+                                card_title = "⚠️ 제품에 적힌 안전 정보를 확인해 주세요"
+                            else:
+                                card_title = "⚠️ 처방전이 필요하거나 들여올 수 있는 양이 정해진 약이에요"
                             badge_cls = "badge-danger" if is_danger else "badge-warning"
 
                             health_risk = citizen_summary.get("health_risks") or ocr_result.get("health_risks") or "먹거나 사용하면 건강에 해롭거나 부작용이 생길 수 있어요."
-                            action_guide = citizen_summary.get("action_guide") or ocr_result.get("customs_advice") or "배송 전이라면 주문을 취소하고, 꼭 필요한 약이라면 의사 처방전을 준비하세요."
+                            action_guide = citizen_summary.get("action_guide") or ocr_result.get("customs_advice") or ("판매자에게 안전 인증과 표시 내용을 확인해 보세요." if is_product_kind else "배송 전이라면 주문을 취소하고, 꼭 필요한 약이라면 의사 처방전을 준비하세요.")
 
                             show_html(f"""
                             <div class="info-card {card_cls}">
                                 <h4>{card_title}</h4>
                                 <div class="info-row"><b>제품 이름</b> · {_t(matched_product_name)}</div>
-                                <div class="info-row"><b>문제 성분</b> · <span class="{badge_cls}">{_t(matched_harmful_ingr)}</span></div>
+                                <div class="info-row"><b>{"확인할 점" if is_product_kind else "문제 성분"}</b> · <span class="{badge_cls}">{_t(matched_harmful_ingr)}</span></div>
                                 <div class="info-row"><b>만든 곳</b> · {_t(matched_maker)} / {_t(matched_country)}</div>
                                 <div class="qa">
                                     <div class="qa-q">❓ 왜 안 되나요?</div>

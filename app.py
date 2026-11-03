@@ -557,7 +557,10 @@ def render_user_service():
                                 if is_blocked and db_rec:
                                     st.info("차단 목록에는 있지만, 정부가 공개한 사진은 없는 제품이에요.")
                                 elif is_blocked and not db_rec:
-                                    st.info("해외 약의 성분을 보고 AI가 판단한 결과예요. 그래서 비교할 정부 등록 사진은 없어요.")
+                                    if is_product_kind:
+                                        st.info("제품에 적힌 표시사항을 보고 AI가 판단한 결과예요. 그래서 비교할 정부 등록 사진은 없어요.")
+                                    else:
+                                        st.info("해외 약의 성분을 보고 AI가 판단한 결과예요. 그래서 비교할 정부 등록 사진은 없어요.")
                                 else:
                                     st.info("위험 제품 목록에 없는 제품이라 비교할 사진이 없어요.")
 

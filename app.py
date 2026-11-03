@@ -211,6 +211,8 @@ if "admin_view" not in st.session_state:
     st.session_state["admin_view"] = False
 if "camera_photos" not in st.session_state:
     st.session_state["camera_photos"] = []
+if "upload_key_seq" not in st.session_state:
+    st.session_state["upload_key_seq"] = 0
 if "inspection_history" not in st.session_state:
     st.session_state["inspection_history"] = []
 
@@ -315,7 +317,7 @@ def render_user_service():
             "사진 파일을 고르거나 여기로 끌어다 놓으세요 (여러 장 가능)",
             type=["jpg", "jpeg", "png", "webp"],
             accept_multiple_files=True,
-            key="user_upload_files"
+            key=f"user_upload_files_{st.session_state['upload_key_seq']}"
         )
 
         with st.expander("📱 휴대폰 카메라로 바로 찍기"):
@@ -346,6 +348,8 @@ def render_user_service():
 
             if st.button("🗑️ 올린 사진 모두 지우기", key="user_reset_imgs"):
                 st.session_state["camera_photos"] = []
+                # 파일 올리기 칸도 새로 만들어서 올린 파일까지 모두 지움
+                st.session_state["upload_key_seq"] += 1
                 st.rerun()
 
         st.markdown("")

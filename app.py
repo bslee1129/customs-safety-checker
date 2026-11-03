@@ -136,6 +136,9 @@ div[data-testid="stFileUploader"] section {
 .verdict.danger { background: #FFF1F1; border: 2px solid #F87171; } .verdict.danger h2 { color: #C62828; }
 .verdict.warn   { background: #FFF8E6; border: 2px solid #F6B93B; } .verdict.warn h2   { color: #A15C00; }
 .verdict.safe   { background: #ECFAF2; border: 2px solid #4ADE80; } .verdict.safe h2   { color: #13804A; }
+.checked-list { list-style: none; padding: 0; margin: 8px 0 6px 0; }
+.checked-list li { font-size: 0.98rem; font-weight: 600; color: #166534; margin: 2px 0; }
+.verdict-note { font-size: 0.88rem !important; color: #6B7280; }
 
 /* 정보 카드 */
 .info-card { background: #FFFFFF; border: 1px solid #E3E9F2; border-left: 6px solid #1B64DA; border-radius: 16px; padding: 18px 20px; margin-bottom: 14px; }
@@ -468,25 +471,25 @@ def render_user_service():
                                 </div>
                             </div>
                             """)
-                        elif recall_out:
-                            show_html("""
-                            <div class="verdict safe">
-                                <div class="verdict-icon">✅</div>
-                                <div>
-                                    <h2>리콜 대상이 아닌 제품으로 보여요</h2>
-                                    <p>같은 모델이 리콜된 적은 있지만, 라벨의 제조사·제조일을 보면 이 제품은 리콜 대상이 아니에요.
-                                    포장 상자와 제품 본체 라벨이 다를 수 있으니 본체 라벨도 한 번 확인해 주세요.</p>
-                                </div>
-                            </div>
-                            """)
                         else:
-                            show_html("""
+                            # 문제가 없는 제품: 확인한 내용을 근거로 '안전한 제품'이라고 안내
+                            checked = []
+                            if safety_res.get("is_kc_certified"):
+                                checked.append("✔ KC 안전인증 정상(적합)")
+                            if recall_out:
+                                checked.append("✔ 리콜 대상 아님 (같은 모델 리콜은 있지만 이 제품의 제조사·제조일은 대상이 아니에요)")
+                            else:
+                                checked.append("✔ 리콜(회수) 이력 없음")
+                            checked.append("✔ 정부 위험 제품·차단 목록에 없음")
+                            checked_html = "".join(f"<li>{_t(c)}</li>" for c in checked)
+                            show_html(f"""
                             <div class="verdict safe">
                                 <div class="verdict-icon">✅</div>
                                 <div>
-                                    <h2>위험 제품 목록에서 찾지 못했어요</h2>
-                                    <p>정부의 위험 제품·리콜 목록에 올라 있지 않아요.
-                                    그래도 사용 전에 설명서와 주의사항은 꼭 읽어 주세요.</p>
+                                    <h2>안전한 제품이에요</h2>
+                                    <p>정부 자료로 확인한 결과 문제가 발견되지 않았어요.</p>
+                                    <ul class="checked-list">{checked_html}</ul>
+                                    <p class="verdict-note">사용 전에 설명서와 주의사항은 꼭 읽어 주세요.</p>
                                 </div>
                             </div>
                             """)

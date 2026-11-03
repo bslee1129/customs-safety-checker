@@ -98,7 +98,10 @@ def scope_sentence(item: Dict[str, Any]) -> str:
             if idx >= 0:
                 idx = max(text.rfind("\n", 0, idx) + 1, 0)
                 break
-    return text[idx:].strip() if idx >= 0 else ""
+    if idx < 0:
+        return ""
+    end = text.find("\n", idx)
+    return (text[idx:end] if end >= 0 else text[idx:]).strip()
 
 
 def check_recall_scope(item: Dict[str, Any], label_maker: str = "", label_date: Any = None) -> Dict[str, str]:
